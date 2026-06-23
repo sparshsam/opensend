@@ -37,4 +37,4 @@ Upload → Scanning (stub) → Available → Expired (24h)
 
 ## Contact for Abuse Reports
 
-Email: security@opensend.app
+Email: sparshsam@gmail.com

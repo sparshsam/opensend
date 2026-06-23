@@ -11,10 +11,10 @@ export default function SupportPage() {
           <div className="flex justify-between items-center py-2">
             <span className="text-label text-text-muted">Email</span>
             <a
-              href="mailto:support@opensend.app"
+              href="mailto:sparshsam@gmail.com"
               className="text-sm font-semibold text-accent hover:brightness-110"
             >
-              support@opensend.app
+              sparshsam@gmail.com
             </a>
           </div>
           <div className="flex justify-between items-center py-2">

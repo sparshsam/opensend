@@ -5,7 +5,7 @@
 OpenSend is a side project with no dedicated security team. If you find a security issue:
 
 1. **Do not** open a public GitHub issue
-2. Email: security@opensend.app
+2. Email: sparshsam@gmail.com
 3. Include as much detail as possible:
    - Type of vulnerability
    - Steps to reproduce

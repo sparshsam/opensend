@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mockDigest = vi.fn();
 
-// Configurable mock for Supabase
+// Configurable mock for Supabase — returns whatever mockSupabaseResponse is set to
 let mockSupabaseResponse: any = null;
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -27,23 +27,25 @@ vi.mock("@supabase/supabase-js", () => ({
 
 beforeEach(() => {
   mockDigest.mockReset();
+  mockSupabaseResponse = null;
   vi.stubGlobal("crypto", {
     subtle: { digest: mockDigest },
   });
-  mockSupabaseResponse = null;
-
-  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
-  process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-key";
+  // Set default test env vars
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test.supabase.co");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test-anon-key");
+  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-key");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "test-publishable-key");
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe("authenticateToken", () => {
   it("throws when Supabase URL is missing", async () => {
-    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     const { authenticateToken } = await import("../supabase.js");
     await expect(authenticateToken("tok_test")).rejects.toThrow(
       "Missing Supabase credentials",
@@ -51,7 +53,7 @@ describe("authenticateToken", () => {
   });
 
   it("throws when service role key is missing", async () => {
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
     const { authenticateToken } = await import("../supabase.js");
     await expect(authenticateToken("tok_test")).rejects.toThrow(
       "Missing SUPABASE_SERVICE_ROLE_KEY",

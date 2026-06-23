@@ -62,7 +62,7 @@ create index if not exists idx_opensend_transfers_expires
 -- For the cleanup cron: expired available transfers
 create index if not exists idx_opensend_transfers_expired_cleanup
   on public.opensend_transfers(expires_at)
-  where status = 'available' and expires_at < now();
+  where status = 'available';
 
 -- ── Triggers ─────────────────────────────────────────────────────
 create or replace function public.opensend_touch_updated_at()
