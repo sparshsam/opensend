@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
   { href: "/", label: "Transfer" },
@@ -15,11 +16,12 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 bg-bg-base/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-lg font-bold text-text-primary">
+      <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4 gap-4">
+        <Link href="/" className="text-lg font-bold text-text-primary shrink-0">
           OpenSend
         </Link>
-        <nav className="flex items-center gap-1">
+
+        <nav className="flex items-center gap-1 flex-1 justify-center">
           {navItems.map((item) => {
             const isActive = item.href === "/"
               ? pathname === "/"
@@ -40,6 +42,10 @@ export function SiteHeader() {
             );
           })}
         </nav>
+
+        <div className="shrink-0">
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

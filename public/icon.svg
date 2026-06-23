@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" rx="200" fill="#2563eb"/>
+  <rect width="1024" height="1024" rx="200" fill="#bc3fde"/>
   <g transform="translate(512,512)">
     <!-- Upward arrow (send) -->
     <path d="M-120 0 L0-160 L120 0" stroke="white" stroke-width="40" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
