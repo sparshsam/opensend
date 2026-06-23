@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { AuthProvider } from "@/components/auth-provider";
 import { ThemeProvider } from "@/components/theme-toggle";
 import { DeviceProvider } from "@/components/device-provider";
+import { TransferProvider } from "@/components/transfer-provider";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -46,11 +47,13 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             <DeviceProvider>
-              <SiteHeader />
-              <main className="mx-auto max-w-2xl px-6 pt-20 sm:pt-28 pb-12">
-                {children}
-              </main>
-              <SiteFooter />
+              <TransferProvider>
+                <SiteHeader />
+                <main className="mx-auto max-w-2xl px-6 pt-20 sm:pt-28 pb-12">
+                  {children}
+                </main>
+                <SiteFooter />
+              </TransferProvider>
             </DeviceProvider>
           </ThemeProvider>
         </AuthProvider>

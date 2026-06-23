@@ -1,259 +1,256 @@
 "use client";
 
-import { useCallback, useState, useRef } from "react";
-import { Check, Copy, Loader2, RotateCcw, X } from "lucide-react";
-import { FileDropzone } from "@/components/file-dropzone";
+import { useCallback, useRef, useState } from "react";
+import { Upload, Monitor, Smartphone, Send, QrCode, Loader2, ArrowUpFromLine, ArrowDownToLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatBytes, formatDate } from "@/lib/utils";
+import { useAuth } from "@/components/auth-provider";
+import { useDevice } from "@/components/device-provider";
+import { useTransfer } from "@/components/transfer-provider";
+import { TransferMonitor } from "@/components/transfer-monitor";
+import { formatBytes } from "@/lib/utils";
 
-type TerminalState = "idle" | "uploading" | "done" | "error";
+export default function HomePage() {
+  const { user, signIn } = useAuth();
+  const { currentDevice, devices } = useDevice();
+  const { activeTransfers, startSend, cancelTransfer, incomingRequests, acceptTransfer, declineTransfer, onlineDevices, refreshOnlineDevices, startHeartbeat } = useTransfer();
 
-interface UploadResult {
-  id: string;
-  share_url: string;
-  claim_code: string;
-  file_name: string;
-  file_size: number;
-  mime_type: string;
-  expires_at: string;
-  status: string;
-}
-
-export default function UploadPage() {
-  const [state, setState] = useState<TerminalState>("idle");
-  const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState<UploadResult | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [copied, setCopied] = useState<"link" | "code" | null>(null);
-  const xhrRef = useRef<XMLHttpRequest | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelected = useCallback(async (f: File) => {
-    setFile(f);
-    setState("uploading");
-    setError(null);
-    setProgress(0);
-
-    const formData = new FormData();
-    formData.append("file", f);
-
-    try {
-      const xhr = new XMLHttpRequest();
-      xhrRef.current = xhr;
-
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          setProgress(Math.round((e.loaded / e.total) * 100));
-        }
-      };
-
-      const response = await new Promise<UploadResult>((resolve, reject) => {
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(JSON.parse(xhr.responseText));
-          } else {
-            try {
-              const err = JSON.parse(xhr.responseText);
-              reject(new Error(err.error || "Upload failed"));
-            } catch {
-              reject(new Error(`Upload failed (${xhr.status})`));
-            }
-          }
-        };
-        xhr.onerror = () => reject(new Error("Network error. Check your connection."));
-        xhr.onabort = () => reject(new Error("Upload cancelled."));
-        xhr.open("POST", "/api/upload");
-        xhr.send(formData);
-      });
-
-      setResult(response);
-      setState("done");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-      setState("error");
-    } finally {
-      xhrRef.current = null;
+  const handleFilePick = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 50 * 1024 * 1024) {
+        setError("File too large. Maximum: 50 MB.");
+        return;
+      }
+      setSelectedFile(file);
+      setError(null);
     }
   }, []);
 
-  const handleCopy = async (text: string, type: "link" | "code") => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(type);
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      // Fallback for non-HTTPS or unsupported browsers
-      const textarea = document.createElement("textarea");
-      textarea.value = text;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
-      setCopied(type);
-      setTimeout(() => setCopied(null), 2000);
-    }
-  };
-
-  const handleReset = () => {
-    setState("idle");
-    setFile(null);
-    setResult(null);
+  const handleSend = useCallback(async () => {
+    if (!selectedFile || !selectedDevice) return;
+    setSending(true);
     setError(null);
-    setProgress(0);
-  };
+    try {
+      startHeartbeat();
+      await startSend(selectedFile, selectedDevice);
+      setSelectedFile(null);
+      setSelectedDevice(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to send");
+    } finally {
+      setSending(false);
+    }
+  }, [selectedFile, selectedDevice, startSend, startHeartbeat]);
+
+  const otherDevices = devices.filter((d) => !d.is_current);
+
+  if (!user) {
+    return (
+      <div className="space-y-10 text-center py-10">
+        <div className="space-y-4">
+          <h1 className="text-hero text-text-primary">OpenSend</h1>
+          <p className="text-lg text-text-secondary max-w-md mx-auto">
+            Send files directly between your devices. No cloud, no uploads, no limits.
+          </p>
+        </div>
+        <div className="border-t border-b border-border-default py-4">
+          <div className="flex items-center justify-center gap-6 text-xs text-label text-text-muted">
+            <span>Device to device</span>
+            <span className="text-text-muted/30 hidden sm:inline">&middot;</span>
+            <span>Free &amp; ad-free</span>
+            <span className="text-text-muted/30 hidden sm:inline">&middot;</span>
+            <span>Open-source</span>
+            <span className="text-text-muted/30 hidden sm:inline">&middot;</span>
+            <span>Privacy-first</span>
+          </div>
+        </div>
+        <Button variant="primary" size="lg" onClick={signIn}>
+          Sign in to start sending
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8 sm:space-y-12">
-      {/* Hero */}
-      <div className="text-center">
-        <h1 className="text-hero text-text-primary">Send a file</h1>
-        <p className="mt-3 sm:mt-4 text-base sm:text-lg text-text-secondary max-w-lg mx-auto">
-          Drop a file, get a link. Share it. They download. Done.
-        </p>
-      </div>
-
-      {/* Terminal — single column vertical flow */}
-      <div className="w-full">
-        {state === "idle" && (
-          <FileDropzone onFileSelected={handleFileSelected} />
-        )}
-
-        {state === "uploading" && (
-          <div className="rounded-2xl p-8 sm:p-12 bg-bg-surface-muted text-center space-y-5">
-            <Loader2 className="mx-auto size-8 text-accent animate-spin" />
-            <div className="space-y-2">
-              <p className="text-lg font-bold text-text-primary">Uploading...</p>
-              <p className="text-sm text-text-muted break-all max-w-md mx-auto">
-                {file?.name} &middot; {file && formatBytes(file.size)}
-              </p>
-            </div>
-            {/* Progress bar */}
-            <div className="w-full max-w-xs mx-auto h-1.5 rounded-full bg-bg-base overflow-hidden">
-              <div
-                className="h-full rounded-full bg-accent transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-xs text-text-muted">{progress}%</p>
-            <button
-              onClick={() => {
-                xhrRef.current?.abort();
-                handleReset();
-              }}
-              className="text-xs text-text-muted hover:text-text-primary transition"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-
-        {state === "done" && result && (
-          <div className="space-y-8">
-            {/* Result hero */}
-            <div className="text-center space-y-4">
-              <div className="mx-auto flex size-14 sm:size-16 items-center justify-center rounded-full bg-accent/10">
-                <Check className="size-7 sm:size-8 text-accent" />
+    <div className="space-y-8">
+      {/* Incoming requests */}
+      {incomingRequests.length > 0 && (
+        <div className="space-y-4">
+          <p className="text-label text-accent">Incoming transfer</p>
+          {incomingRequests.map((req) => (
+            <div key={req.sessionId} className="rounded-2xl p-6 bg-bg-surface-muted space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="flex size-12 items-center justify-center rounded-full bg-accent/10">
+                  <ArrowDownToLine className="size-6 text-accent" />
+                </div>
+                <div>
+                  <p className="font-bold text-text-primary">{req.peerDevice}</p>
+                  <p className="text-sm text-text-muted">Wants to send you a file</p>
+                </div>
               </div>
-              <p className="text-display text-text-primary">Ready to share</p>
-              <p className="text-sm text-text-muted break-all max-w-sm mx-auto">
-                {result.file_name} &middot; {formatBytes(result.file_size)}
-              </p>
-            </div>
-
-            {/* Receipt ticket */}
-            <div className="border-t-2 border-dashed border-text-muted/30 pt-6 sm:pt-8 space-y-4">
-              {/* Share link */}
-              <div className="flex items-center gap-3 py-3 border-b border-border-default">
-                <span className="text-label text-text-muted shrink-0 hidden sm:inline">Link</span>
-                <span className="text-xs sm:text-sm font-mono text-text-primary flex-1 truncate">
-                  {result.share_url}
-                </span>
-                <button
-                  onClick={() => handleCopy(result.share_url, "link")}
-                  className="shrink-0 size-9 flex items-center justify-center rounded-full bg-bg-surface-muted hover:bg-[#252525] transition"
-                  aria-label="Copy link"
-                >
-                  {copied === "link" ? <Check className="size-4 text-accent" /> : <Copy className="size-4" />}
-                </button>
+              <div className="flex gap-3">
+                <Button variant="primary" className="flex-1" onClick={() => acceptTransfer(req.sessionId)}>
+                  Accept
+                </Button>
+                <Button variant="secondary" className="flex-1" onClick={() => declineTransfer(req.sessionId)}>
+                  Decline
+                </Button>
               </div>
-
-              {/* Claim code */}
-              <div className="flex items-center justify-between gap-4 py-3 border-b border-border-default">
-                <span className="text-label text-text-muted shrink-0">Code</span>
-                <span className="font-mono text-xl sm:text-2xl font-bold text-text-primary tracking-[0.2em]">
-                  {result.claim_code}
-                </span>
-                <button
-                  onClick={() => handleCopy(result.claim_code, "code")}
-                  className="shrink-0 size-9 flex items-center justify-center rounded-full bg-bg-surface-muted hover:bg-[#252525] transition"
-                  aria-label="Copy code"
-                >
-                  {copied === "code" ? <Check className="size-4 text-accent" /> : <Copy className="size-4" />}
-                </button>
-              </div>
-
-              {/* Expiry */}
-              <div className="flex justify-between py-3 text-sm">
-                <span className="text-label text-text-muted">Expires</span>
-                <span className="text-text-muted">{formatDate(result.expires_at)}</span>
-              </div>
-
-              {/* Ticket footer */}
-              <p className="text-center text-xs text-text-muted pt-4">
-                &mdash; OpenSend v0.1.2 &mdash;
-              </p>
             </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="primary"
-                size="lg"
-                className="flex-1 min-h-[52px]"
-                onClick={() => handleCopy(result.share_url, "link")}
-              >
-                {copied === "link" ? <Check className="size-5" /> : <Copy className="size-5" />}
-                Copy link
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="flex-1 min-h-[52px]"
-                onClick={handleReset}
-              >
-                <RotateCcw className="size-5" />
-                Send another
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {state === "error" && (
-          <div className="text-center space-y-6 py-12">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-error/10">
-              <X className="size-7 text-error" />
-            </div>
-            <p className="text-display text-error">Upload failed</p>
-            <p className="text-sm text-text-muted max-w-sm mx-auto">{error}</p>
-            <Button variant="primary" size="lg" onClick={handleReset}>
-              <RotateCcw className="size-5" />
-              Try again
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Info strip */}
-      <div className="border-t border-b border-border-default py-4">
-        <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-label text-text-muted">
-          <span>Free &amp; ad-free</span>
-          <span className="text-text-muted/30 hidden sm:inline">&middot;</span>
-          <span>Up to 50 MB</span>
-          <span className="text-text-muted/30 hidden sm:inline">&middot;</span>
-          <span>Expires 24h</span>
-          <span className="text-text-muted/30 hidden sm:inline">&middot;</span>
-          <span>Open-source</span>
+          ))}
         </div>
+      )}
+
+      {/* Active transfers */}
+      {activeTransfers.length > 0 && (
+        <div className="space-y-4">
+          <p className="text-label text-text-muted">Active transfers</p>
+          {activeTransfers.map((t) => (
+            <TransferMonitor
+              key={t.sessionId}
+              {...t}
+              onCancel={() => cancelTransfer(t.sessionId)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Send flow */}
+      <div className="space-y-6">
+        <div className="text-center">
+          <h1 className="text-hero text-text-primary">Send a file</h1>
+          <p className="mt-3 text-base sm:text-lg text-text-secondary max-w-lg mx-auto">
+            Pick a file, choose a device, send it directly.
+          </p>
+        </div>
+
+        {/* File picker */}
+        <div
+          onClick={() => fileRef.current?.click()}
+          className="rounded-2xl p-8 sm:p-12 bg-bg-surface-muted cursor-pointer text-center transition hover:bg-bg-surface-muted/80"
+        >
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            onChange={handleFilePick}
+          />
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-accent/10">
+            {selectedFile ? (
+              <ArrowUpFromLine className="size-6 text-accent" />
+            ) : (
+              <Upload className="size-6 text-accent" />
+            )}
+          </div>
+          {selectedFile ? (
+            <div>
+              <p className="text-lg font-bold text-text-primary">{selectedFile.name}</p>
+              <p className="text-sm text-text-muted mt-1">{formatBytes(selectedFile.size)}</p>
+              <button
+                onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
+                className="text-xs text-text-muted hover:text-text-primary mt-2 transition"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <div>
+              <p className="text-xl font-bold text-text-primary">Select a file</p>
+              <p className="mt-2 text-sm text-text-muted">
+                Click to browse &mdash; up to 50 MB
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Device picker */}
+        {selectedFile && (
+          <div className="space-y-4">
+            <p className="text-label text-text-muted">Send to device</p>
+
+            {currentDevice && (
+              <button
+                onClick={() => refreshOnlineDevices()}
+                className="text-xs text-text-muted hover:text-text-primary transition"
+              >
+                Refresh devices
+              </button>
+            )}
+
+            {otherDevices.length === 0 ? (
+              <div className="rounded-2xl p-8 bg-bg-surface-muted text-center">
+                <Monitor className="mx-auto size-8 text-text-muted mb-3" />
+                <p className="text-base font-bold text-text-primary">No devices found</p>
+                <p className="text-sm text-text-muted mt-1 max-w-sm mx-auto">
+                  Open OpenSend on another device and sign in with the same account. They&apos;ll appear here automatically.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {otherDevices.map((device) => {
+                  const isOnline = onlineDevices.some((d) => d.id === device.id);
+                  const isSelected = selectedDevice === device.id;
+                  return (
+                    <button
+                      key={device.id}
+                      onClick={() => setSelectedDevice(device.id)}
+                      className={`w-full flex items-center gap-4 rounded-full px-5 py-3.5 text-left transition cursor-pointer ${
+                        isSelected
+                          ? "bg-accent/10 ring-2 ring-accent"
+                          : "bg-bg-surface-muted/30 hover:bg-bg-surface-muted"
+                      }`}
+                    >
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-bg-surface-muted">
+                        {device.platform === "android" || device.platform === "ios" ? (
+                          <Smartphone className="size-5 text-text-secondary" />
+                        ) : (
+                          <Monitor className="size-5 text-text-secondary" />
+                        )}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-text-primary truncate">{device.name}</p>
+                        <p className="text-xs text-text-muted">
+                          {device.platform} &middot; {device.device_type}
+                          {isOnline && <span className="text-accent ml-2">Online</span>}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Send button */}
+        {selectedFile && selectedDevice && (
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full min-h-[56px] text-base"
+            disabled={sending}
+            onClick={handleSend}
+          >
+            {sending ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Send className="size-5" />
+            )}
+            {sending ? "Connecting..." : `Send to ${
+              otherDevices.find((d) => d.id === selectedDevice)?.name || "device"
+            }`}
+          </Button>
+        )}
+
+        {error && (
+          <p className="text-sm text-error text-center">{error}</p>
+        )}
       </div>
     </div>
   );
