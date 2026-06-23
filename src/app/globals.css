@@ -45,14 +45,6 @@
   * {
     border-color: var(--color-border);
   }
-
-  body {
-    background-color: var(--color-bg-base);
-    color: var(--color-text-primary);
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
 }
 
 @utility text-hero {
@@ -78,4 +70,13 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+/* ── Base element styles (outside @layer to survive Tailwind v4 compilation) ── */
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
