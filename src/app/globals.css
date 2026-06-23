@@ -29,7 +29,7 @@
   --color-primary: #bc3fde;
   --color-primary-foreground: #ffffff;
   --color-destructive: #ff4d4d;
-  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border: rgba(255, 255, 255, 0.08);
 
   /* ── Typography utilities ── */
   --text-hero: clamp(2.5rem, 6vw, 4.5rem);
@@ -72,11 +72,51 @@
   text-transform: uppercase;
 }
 
-/* ── Base element styles (outside @layer to survive Tailwind v4 compilation) ── */
+/* ── Base element styles ── */
 body {
-  background-color: var(--color-bg-base);
-  color: var(--color-text-primary);
-  font-family: var(--font-sans);
+  background-color: rgb(26, 4, 34);
+  color: #ffffff;
+  font-family: "Noto Sans Math", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* ============================================================
+   LIGHT MODE OVERRIDES
+   Tailwind v4 compiles color utilities to hardcoded values,
+   so we override each used utility class under .light.
+   ============================================================ */
+.light body,
+.light .bg-bg-base,
+.light .bg-bg-base\/90 {
+  background-color: #faf0ff !important;
+}
+.light .bg-bg-surface { background-color: #f5e6fa; }
+.light .bg-bg-surface-muted,
+.light .bg-bg-surface-muted\/30,
+.light .hover\:bg-bg-surface-muted:hover { background-color: #ebd6f0; }
+.light .hover\:bg-\[\#222\]:hover,
+.light .hover\:bg-\[\#252525\]:hover { background-color: #ebd6f0; }
+
+.light body,
+.light .text-text-primary,
+.light .text-hero,
+.light .text-display,
+.light .hover\:text-text-primary:hover,
+.light .placeholder\:text-text-muted::placeholder {
+  color: #1a0422;
+}
+.light .text-text-secondary { color: #5c3a6b; }
+.light .text-text-muted,
+.light .text-text-muted\/30 { color: #8a6b99; }
+
+.light .border-border-default,
+.light .border-text-muted\/30 { border-color: rgba(90, 20, 120, 0.10); }
+
+.light .bg-accent { background-color: #bc3fde; }
+.light .bg-accent\/10 { background-color: rgba(188, 63, 222, 0.1); }
+
+.light .bg-error\/10 { background-color: rgba(211, 40, 40, 0.1); }
+.light .bg-error\/20 { background-color: rgba(211, 40, 40, 0.2); }
+.light .text-error { color: #c62828; }
+.light .border-error\/20 { border-color: rgba(198, 40, 40, 0.2); }

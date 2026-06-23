@@ -33,19 +33,7 @@ export default function RootLayout({
                 try {
                   var t = localStorage.getItem('opensend-theme');
                   if (t === 'light') {
-                    var r = document.documentElement;
-                    var vars = [
-                      '--color-bg-base:#faf0ff', '--color-bg-surface:#f5e6fa', '--color-bg-surface-muted:#ebd6f0',
-                      '--color-text-primary:#1a0422', '--color-text-secondary:#5c3a6b', '--color-text-muted:#8a6b99',
-                      '--color-border-default:rgba(90,20,120,0.10)', '--color-accent:#bc3fde', '--color-accent-hover:#a832c4',
-                      '--color-error:#c62828', '--color-background:#faf0ff', '--color-foreground:#1a0422',
-                      '--color-muted:#ebd6f0', '--color-muted-foreground:#8a6b99', '--color-primary:#bc3fde',
-                      '--color-primary-foreground:#1a0422', '--color-border:rgba(90,20,120,0.10)'
-                    ];
-                    for (var i = 0; i < vars.length; i++) {
-                      var p = vars[i].indexOf(':');
-                      r.style.setProperty(vars[i].slice(0, p), vars[i].slice(p + 1));
-                    }
+                    document.documentElement.classList.add('light');
                   }
                 } catch(e) {}
               })();

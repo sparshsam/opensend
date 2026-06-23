@@ -5,56 +5,6 @@ import { Sun, Moon } from "lucide-react";
 
 type Theme = "dark" | "light";
 
-// ── Light mode — purple-tinted white background ──
-const LIGHT_VARS: Record<string, string> = {
-  "--color-bg-base": "#faf0ff",
-  "--color-bg-surface": "#f5e6fa",
-  "--color-bg-surface-muted": "#ebd6f0",
-  "--color-text-primary": "#1a0422",
-  "--color-text-secondary": "#5c3a6b",
-  "--color-text-muted": "#8a6b99",
-  "--color-border-default": "rgba(90, 20, 120, 0.10)",
-  "--color-accent": "#bc3fde",
-  "--color-accent-hover": "#a832c4",
-  "--color-error": "#c62828",
-  "--color-background": "#faf0ff",
-  "--color-foreground": "#1a0422",
-  "--color-muted": "#ebd6f0",
-  "--color-muted-foreground": "#8a6b99",
-  "--color-primary": "#bc3fde",
-  "--color-primary-foreground": "#1a0422",
-  "--color-border": "rgba(90, 20, 120, 0.10)",
-};
-
-// ── Dark mode — deep purple-toned black background ──
-const DARK_VARS: Record<string, string> = {
-  "--color-bg-base": "#1a0422",
-  "--color-bg-surface": "#240a30",
-  "--color-bg-surface-muted": "#2d103a",
-  "--color-text-primary": "#ffffff",
-  "--color-text-secondary": "#d4b0e0",
-  "--color-text-muted": "#a080b0",
-  "--color-border-default": "rgba(255, 255, 255, 0.08)",
-  "--color-accent": "#bc3fde",
-  "--color-accent-hover": "#a832c4",
-  "--color-error": "#ff4d4d",
-  "--color-background": "#1a0422",
-  "--color-foreground": "#ffffff",
-  "--color-muted": "#2d103a",
-  "--color-muted-foreground": "#a080b0",
-  "--color-primary": "#bc3fde",
-  "--color-primary-foreground": "#ffffff",
-  "--color-border": "rgba(255, 255, 255, 0.08)",
-};
-
-function applyTheme(theme: Theme) {
-  const vars = theme === "light" ? LIGHT_VARS : DARK_VARS;
-  const root = document.documentElement;
-  for (const [key, value] of Object.entries(vars)) {
-    root.style.setProperty(key, value);
-  }
-}
-
 interface ThemeContext {
   theme: Theme;
   toggle: () => void;
@@ -64,6 +14,15 @@ const ThemeCtx = createContext<ThemeContext>({
   theme: "dark",
   toggle: () => {},
 });
+
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  if (theme === "light") {
+    root.classList.add("light");
+  } else {
+    root.classList.remove("light");
+  }
+}
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
