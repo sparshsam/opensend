@@ -14,10 +14,10 @@
   [![Version](https://img.shields.io/github/v/release/sparshsam/opensend?style=flat-square&color=2563eb)](https://github.com/sparshsam/opensend/releases)
   [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org)
   [![Supabase](https://img.shields.io/badge/Supabase-2.x-3fcf8e?style=flat-square&logo=supabase)](https://supabase.com)
-  [![Vercel](https://img.shields.io/badge/Vercel-deployed-black?style=flat-square&logo=vercel)](https://opensend-app.vercel.app)
+  [![Vercel](https://img.shields.io/badge/Vercel-deployed-black?style=flat-square&logo=vercel)](https://opensendbysparsh.vercel.app)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript)](https://typescriptlang.org)
 
-  **[opensend-app.vercel.app](https://opensend-app.vercel.app)** · **[GitHub](https://github.com/sparshsam/opensend)**
+  **[opensendbysparsh.vercel.app](https://opensendbysparsh.vercel.app)** · **[GitHub](https://github.com/sparshsam/opensend)**
 </div>
 
 ## Features
