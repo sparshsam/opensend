@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* ── Noto Sans Math ── */
+@font-face {
+  font-family: "Noto Sans Math";
+  src: url("/fonts/NotoSansMath-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme inline {
   /* ── Dark mode defaults (class="dark" or no class) ── */
   --color-bg-base: #000000;
@@ -28,7 +37,7 @@
   --text-stat: clamp(2.5rem, 4vw, 3.5rem);
   --text-label: 0.75rem;
 
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Noto Sans Math", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
