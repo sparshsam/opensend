@@ -35,12 +35,12 @@ export default function RootLayout({
                   if (t === 'light') {
                     var r = document.documentElement;
                     var vars = [
-                      '--color-bg-base:#ffffff', '--color-bg-surface:#f5f5f5', '--color-bg-surface-muted:#ebebeb',
-                      '--color-text-primary:#000000', '--color-text-secondary:#4a4a4a', '--color-text-muted:#8a8a8a',
-                      '--color-border-default:rgba(0,0,0,0.06)', '--color-accent:#bc3fde', '--color-accent-hover:#a832c4',
-                      '--color-error:#d32d2d', '--color-background:#ffffff', '--color-foreground:#000000',
-                      '--color-muted:#ebebeb', '--color-muted-foreground:#8a8a8a', '--color-primary:#bc3fde',
-                      '--color-primary-foreground:#000000', '--color-border:rgba(0,0,0,0.06)'
+                      '--color-bg-base:#faf0ff', '--color-bg-surface:#f5e6fa', '--color-bg-surface-muted:#ebd6f0',
+                      '--color-text-primary:#1a0422', '--color-text-secondary:#5c3a6b', '--color-text-muted:#8a6b99',
+                      '--color-border-default:rgba(90,20,120,0.10)', '--color-accent:#bc3fde', '--color-accent-hover:#a832c4',
+                      '--color-error:#c62828', '--color-background:#faf0ff', '--color-foreground:#1a0422',
+                      '--color-muted:#ebd6f0', '--color-muted-foreground:#8a6b99', '--color-primary:#bc3fde',
+                      '--color-primary-foreground:#1a0422', '--color-border:rgba(90,20,120,0.10)'
                     ];
                     for (var i = 0; i < vars.length; i++) {
                       var p = vars[i].indexOf(':');

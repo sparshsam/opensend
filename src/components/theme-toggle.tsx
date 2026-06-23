@@ -5,46 +5,46 @@ import { Sun, Moon } from "lucide-react";
 
 type Theme = "dark" | "light";
 
-// Light mode CSS variable values (overrides dark defaults from @theme inline)
+// ── Light mode — purple-tinted white background ──
 const LIGHT_VARS: Record<string, string> = {
-  "--color-bg-base": "#ffffff",
-  "--color-bg-surface": "#f5f5f5",
-  "--color-bg-surface-muted": "#ebebeb",
-  "--color-text-primary": "#000000",
-  "--color-text-secondary": "#4a4a4a",
-  "--color-text-muted": "#8a8a8a",
-  "--color-border-default": "rgba(0, 0, 0, 0.06)",
+  "--color-bg-base": "#faf0ff",
+  "--color-bg-surface": "#f5e6fa",
+  "--color-bg-surface-muted": "#ebd6f0",
+  "--color-text-primary": "#1a0422",
+  "--color-text-secondary": "#5c3a6b",
+  "--color-text-muted": "#8a6b99",
+  "--color-border-default": "rgba(90, 20, 120, 0.10)",
   "--color-accent": "#bc3fde",
   "--color-accent-hover": "#a832c4",
-  "--color-error": "#d32d2d",
-  "--color-background": "#ffffff",
-  "--color-foreground": "#000000",
-  "--color-muted": "#ebebeb",
-  "--color-muted-foreground": "#8a8a8a",
+  "--color-error": "#c62828",
+  "--color-background": "#faf0ff",
+  "--color-foreground": "#1a0422",
+  "--color-muted": "#ebd6f0",
+  "--color-muted-foreground": "#8a6b99",
   "--color-primary": "#bc3fde",
-  "--color-primary-foreground": "#000000",
-  "--color-border": "rgba(0, 0, 0, 0.06)",
+  "--color-primary-foreground": "#1a0422",
+  "--color-border": "rgba(90, 20, 120, 0.10)",
 };
 
-// Dark mode CSS variable values
+// ── Dark mode — deep purple-toned black background ──
 const DARK_VARS: Record<string, string> = {
-  "--color-bg-base": "#000000",
-  "--color-bg-surface": "#0d0d0d",
-  "--color-bg-surface-muted": "#1a1a1a",
+  "--color-bg-base": "#1a0422",
+  "--color-bg-surface": "#240a30",
+  "--color-bg-surface-muted": "#2d103a",
   "--color-text-primary": "#ffffff",
-  "--color-text-secondary": "#a0a0a0",
-  "--color-text-muted": "#8a8a8a",
-  "--color-border-default": "rgba(255, 255, 255, 0.06)",
+  "--color-text-secondary": "#d4b0e0",
+  "--color-text-muted": "#a080b0",
+  "--color-border-default": "rgba(255, 255, 255, 0.08)",
   "--color-accent": "#bc3fde",
   "--color-accent-hover": "#a832c4",
   "--color-error": "#ff4d4d",
-  "--color-background": "#000000",
+  "--color-background": "#1a0422",
   "--color-foreground": "#ffffff",
-  "--color-muted": "#1a1a1a",
-  "--color-muted-foreground": "#8a8a8a",
+  "--color-muted": "#2d103a",
+  "--color-muted-foreground": "#a080b0",
   "--color-primary": "#bc3fde",
   "--color-primary-foreground": "#ffffff",
-  "--color-border": "rgba(255, 255, 255, 0.06)",
+  "--color-border": "rgba(255, 255, 255, 0.08)",
 };
 
 function applyTheme(theme: Theme) {
@@ -69,7 +69,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
   const [mounted, setMounted] = useState(false);
 
-  // One-time: read stored preference and apply on mount
   useEffect(() => {
     const stored = localStorage.getItem("opensend-theme") as Theme | null;
     const t = stored === "light" ? "light" : "dark";

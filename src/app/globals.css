@@ -11,21 +11,21 @@
 
 @theme inline {
   /* ── Dark mode defaults ── */
-  --color-bg-base: #000000;
-  --color-bg-surface: #0d0d0d;
-  --color-bg-surface-muted: #1a1a1a;
+  --color-bg-base: #1a0422;
+  --color-bg-surface: #240a30;
+  --color-bg-surface-muted: #2d103a;
   --color-text-primary: #ffffff;
-  --color-text-secondary: #a0a0a0;
-  --color-text-muted: #8a8a8a;
-  --color-border-default: rgba(255, 255, 255, 0.06);
+  --color-text-secondary: #d4b0e0;
+  --color-text-muted: #a080b0;
+  --color-border-default: rgba(255, 255, 255, 0.08);
   --color-accent: #bc3fde;
   --color-accent-hover: #a832c4;
   --color-error: #ff4d4d;
 
-  --color-background: #000000;
+  --color-background: #1a0422;
   --color-foreground: #ffffff;
-  --color-muted: #1a1a1a;
-  --color-muted-foreground: #8a8a8a;
+  --color-muted: #2d103a;
+  --color-muted-foreground: #a080b0;
   --color-primary: #bc3fde;
   --color-primary-foreground: #ffffff;
   --color-destructive: #ff4d4d;
