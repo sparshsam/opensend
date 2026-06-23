@@ -1,31 +1,35 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ExternalLink, Loader2, Trash2, AlertTriangle } from "lucide-react";
+import { ArrowUpFromLine, ArrowDownToLine, Loader2, Trash2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
+import { useDevice } from "@/components/device-provider";
 import { Button } from "@/components/ui/button";
 import { formatBytes, formatDate } from "@/lib/utils";
 
-interface Transfer {
+interface HistoryItem {
   id: string;
+  direction: "sent" | "received";
   file_name: string;
   file_size: number;
   mime_type: string;
-  claim_code: string;
-  download_count: number;
+  peer_device: string;
   status: string;
-  expires_at: string;
   created_at: string;
 }
 
+type FilterTab = "all" | "sent" | "received";
+
 export default function HistoryPage() {
   const { user, loading: authLoading, signIn } = useAuth();
-  const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const { devices } = useDevice();
+  const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterTab>("all");
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const loadTransfers = useCallback(async () => {
+  const loadHistory = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     setError(null);
@@ -33,54 +37,59 @@ export default function HistoryPage() {
       const res = await fetch("/api/transfers?status=all");
       if (res.ok) {
         const data = await res.json();
-        setTransfers(data);
+        // Map transfers to history items with device info
+        const deviceMap = new Map(devices.map((d) => [d.id, d.name]));
+        const history: HistoryItem[] = (data ?? []).map((t: any) => ({
+          id: t.id,
+          direction: t.sender_device_id ? "sent" : "received",
+          file_name: t.file_name,
+          file_size: t.file_size,
+          mime_type: t.mime_type,
+          peer_device: deviceMap.get(t.sender_device_id || t.receiver_device_id) || "Unknown Device",
+          status: t.status,
+          created_at: t.created_at,
+        }));
+        setItems(history);
       } else {
         const err = await res.json().catch(() => ({ error: "Failed to load" }));
-        setError(err.error || "Failed to load transfers");
+        setError(err.error || "Failed to load history");
       }
     } catch {
-      setError("Network error. Check your connection.");
+      setError("Network error.");
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, devices]);
 
-  // Reload when user changes
   useEffect(() => {
-    if (user) loadTransfers();
+    if (user) loadHistory();
     else if (!authLoading) {
       setLoading(false);
-      setTransfers([]);
+      setItems([]);
     }
-  }, [user, authLoading, loadTransfers]);
+  }, [user, authLoading, loadHistory]);
 
   const handleDelete = async (id: string) => {
     setDeleting(id);
     try {
       const res = await fetch(`/api/transfers/${id}`, { method: "DELETE" });
       if (res.ok) {
-        setTransfers((prev) => prev.filter((t) => t.id !== id));
-      } else {
-        const err = await res.json().catch(() => ({ error: "Delete failed" }));
-        console.error(err.error);
+        setItems((prev) => prev.filter((i) => i.id !== id));
       }
     } catch {
-      console.error("Delete failed");
+      // Silently fail
     } finally {
       setDeleting(null);
     }
   };
 
-  const statusColor = (status: string) => {
-    switch (status) {
-      case "available": return "text-accent";
-      case "uploading":
-      case "scanning": return "text-text-muted";
-      case "expired": return "text-text-muted";
-      case "blocked": return "text-error";
-      default: return "text-text-muted";
-    }
-  };
+  const filtered = filter === "all" ? items : items.filter((i) => i.direction === filter);
+
+  const tabs: { key: FilterTab; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "sent", label: "Sent" },
+    { key: "received", label: "Received" },
+  ];
 
   if (authLoading) {
     return (
@@ -95,7 +104,7 @@ export default function HistoryPage() {
       <div className="space-y-6 text-center py-12">
         <h1 className="text-display text-text-primary">Transfer history</h1>
         <p className="text-sm text-text-muted max-w-xs mx-auto">
-          Sign in to view your transfer history and manage your files.
+          Sign in to view your sent and received transfers.
         </p>
         <Button variant="primary" size="lg" onClick={signIn}>
           Sign in with GitHub
@@ -105,14 +114,29 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="space-y-8 sm:space-y-10">
+    <div className="space-y-8">
       <div className="text-center sm:text-left">
         <h1 className="text-display text-text-primary">Transfer history</h1>
         <p className="mt-2 text-sm text-text-muted">
-          {transfers.length > 0
-            ? `${transfers.length} transfer${transfers.length !== 1 ? "s" : ""}`
-            : "Your recently shared files"}
+          {items.length > 0 ? `${items.length} transfer${items.length !== 1 ? "s" : ""}` : "Your sent and received files"}
         </p>
+      </div>
+
+      {/* Pill tabs */}
+      <div className="flex gap-2 justify-center sm:justify-start">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setFilter(tab.key)}
+            className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
+              filter === tab.key
+                ? "bg-bg-surface-muted text-text-primary"
+                : "text-text-secondary hover:text-text-primary"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -123,52 +147,51 @@ export default function HistoryPage() {
         <div className="text-center py-12 space-y-4">
           <AlertTriangle className="mx-auto size-8 text-error" />
           <p className="text-sm text-text-muted">{error}</p>
-          <Button variant="secondary" size="sm" onClick={loadTransfers}>
-            Retry
-          </Button>
+          <Button variant="secondary" size="sm" onClick={loadHistory}>Retry</Button>
         </div>
-      ) : transfers.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="py-16 text-center">
-          <p className="text-xl font-bold text-text-primary">No transfers yet</p>
+          <p className="text-xl font-bold text-text-primary">
+            {filter === "all" ? "No transfers yet" : `No ${filter} transfers`}
+          </p>
           <p className="mt-2 text-sm text-text-muted">
-            Upload your first file to get started
+            Upload or receive a file to see it here
           </p>
         </div>
       ) : (
         <div className="space-y-2">
-          {transfers.map((t) => (
+          {filtered.map((item) => (
             <div
-              key={t.id}
+              key={item.id}
               className="flex items-center justify-between gap-3 rounded-full px-5 py-3.5 bg-bg-surface-muted/30"
             >
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-text-primary truncate">
-                  {t.file_name}
-                </p>
-                <p className="text-xs text-text-muted mt-0.5">
-                  {formatBytes(t.file_size)} &middot; {formatDate(t.created_at)} &middot; {t.download_count} download{t.download_count !== 1 ? "s" : ""}
-                </p>
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <span className="shrink-0 text-text-muted">
+                  {item.direction === "sent" ? (
+                    <ArrowUpFromLine className="size-4" />
+                  ) : (
+                    <ArrowDownToLine className="size-4" />
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-text-primary truncate">
+                    {item.file_name}
+                  </p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {formatBytes(item.file_size)} &middot; {item.peer_device} &middot; {formatDate(item.created_at)}
+                  </p>
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className={`text-xs font-bold tracking-wider uppercase ${statusColor(t.status)}`}>
-                  {t.status}
+                <span className="text-xs font-bold tracking-wider uppercase text-text-muted">
+                  {item.direction === "sent" ? "Sent" : "Received"}
                 </span>
-                {t.status === "available" && (
-                  <a
-                    href={`/t/${t.claim_code}`}
-                    className="text-text-secondary hover:text-text-primary transition p-1.5"
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    <ExternalLink className="size-4" />
-                  </a>
-                )}
                 <button
-                  onClick={() => handleDelete(t.id)}
-                  disabled={deleting === t.id}
+                  onClick={() => handleDelete(item.id)}
+                  disabled={deleting === item.id}
                   className="text-text-secondary hover:text-error transition p-1.5 disabled:opacity-40"
                 >
-                  {deleting === t.id ? (
+                  {deleting === item.id ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
                     <Trash2 className="size-4" />

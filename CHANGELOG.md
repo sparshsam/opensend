@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.2.0 (2026-06-23)
+
+### Added
+- Direct device-to-device transfer foundation (WebRTC architecture)
+- Device registration: auto-detect platform, OS, browser, device type
+- Device management API (register, list, rename)
+- `opensend_devices` table with RLS and ownership
+- `opensend_transfer_sessions` table for P2P session coordination
+- New transfer session endpoints (create, accept, decline)
+- `opensend_transfers` extended with session_id, checksum, device IDs
+- MCP tools: list_my_devices, get_device, rename_device, list_transfer_history
+- Device detection utility (UA parsing, fingerprinting)
+- DeviceProvider context for auto-registration
+- History page redesigned: sent/received tabs with pill filter
+- Transfer architecture docs (P2P primary, relay fallback)
+
+### Changed
+- History: removed cloud-drive list, now shows sent/received with device info
+- Supabase types: added Device, TransferSession, new status enums
+- MCP status filter: includes new P2P statuses (pending, waiting, transferring)
+
 ## v0.1.2 (2026-06-23)
 
 ### Added

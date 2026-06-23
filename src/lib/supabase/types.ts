@@ -1,25 +1,53 @@
-// OpenSend database types matching the prefixed schema
+// OpenSend v0.2.0 types — device transfer system
 
-export type TransferStatus = "uploading" | "scanning" | "available" | "expired" | "blocked" | "deleted";
-export type VirusScanStatus = "pending" | "scanning" | "clean" | "infected" | "error";
-export type EventType =
-  | "upload_started" | "upload_completed" | "upload_failed"
-  | "scan_started" | "scan_completed" | "scan_failed"
-  | "download_started" | "download_completed"
-  | "expired" | "deleted" | "blocked" | "reported"
-  | "password_attempt" | "password_correct";
+export type TransferStatus = "pending" | "waiting" | "uploading" | "scanning" | "transferring" | "available" | "expired" | "blocked" | "deleted";
+export type SessionStatus = "waiting" | "pending_accept" | "accepted" | "declined" | "relay" | "transferring" | "completed" | "failed" | "cancelled";
+export type ConnectionType = "direct" | "relay" | "unknown";
+export type DeviceType = "desktop" | "mobile" | "tablet";
+export type Platform = "windows" | "android" | "ios" | "macos" | "linux" | "web";
 
+// ── Device ──────────────────────────────────────────────────────
+export interface Device {
+  id: string;
+  user_id: string;
+  name: string;
+  platform: Platform;
+  browser: string | null;
+  os: string | null;
+  device_type: DeviceType;
+  fingerprint: string | null;
+  is_current: boolean;
+  last_seen_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Transfer Session ────────────────────────────────────────────
+export interface TransferSession {
+  id: string;
+  sender_id: string | null;
+  receiver_id: string | null;
+  sender_device_id: string | null;
+  receiver_device_id: string | null;
+  status: SessionStatus;
+  connection_type: ConnectionType;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Transfer ────────────────────────────────────────────────────
 export interface OpenSendTransfer {
   id: string;
   user_id: string | null;
   file_name: string;
   file_size: number;
   mime_type: string;
-  storage_path: string;
-  claim_code: string;
-  share_token_hash: string;
+  storage_path: string | null;
+  claim_code: string | null;
+  share_token_hash: string | null;
   password_hash: string | null;
-  virus_scan_status: VirusScanStatus;
+  virus_scan_status: string;
   download_count: number;
   download_limit: number | null;
   last_downloaded_at: string | null;
@@ -32,39 +60,37 @@ export interface OpenSendTransfer {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+  // v0.2.0 additions
+  session_id: string | null;
+  checksum: string | null;
+  sender_device_id: string | null;
+  receiver_device_id: string | null;
 }
 
-export interface OpenSendTransferEvent {
+// ── History Entry ───────────────────────────────────────────────
+export interface HistoryEntry {
   id: string;
-  transfer_id: string;
-  user_id: string | null;
-  event_type: EventType;
-  metadata: Record<string, unknown> | null;
-  ip_hash: string | null;
-  ua_hash: string | null;
+  type: "sent" | "received";
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  peer_device: string;
+  peer_user: string | null;
+  status: TransferStatus | SessionStatus;
   created_at: string;
 }
 
-export interface OpenSendMcpToken {
-  id: string;
-  user_id: string;
-  name: string;
-  token_hash: string;
-  token_prefix: string;
-  last_used_at: string | null;
-  created_at: string;
-  revoked_at: string | null;
-}
-
-/** Returns a display-friendly label for the transfer status. */
 export function formatTransferStatus(status: TransferStatus): string {
   const labels: Record<TransferStatus, string> = {
+    pending: "Pending",
+    waiting: "Waiting",
     uploading: "Uploading",
     scanning: "Scanning",
+    transferring: "Transferring",
     available: "Available",
     expired: "Expired",
     blocked: "Blocked",
     deleted: "Deleted",
   };
-  return labels[status];
+  return labels[status] || status;
 }

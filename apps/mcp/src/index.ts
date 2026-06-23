@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { authenticateToken, type Client } from "./supabase.js";
 import { registerTransferTools } from "./tools/transfers.js";
+import { registerDeviceTools } from "./tools/devices.js";
 
 async function main() {
   const token = process.env.OPENSEND_ACCESS_TOKEN;
@@ -38,6 +39,7 @@ async function main() {
   });
 
   registerTransferTools(server, getClient, userId);
+  registerDeviceTools(server, getClient, userId);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
