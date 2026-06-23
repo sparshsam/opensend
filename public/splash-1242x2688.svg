@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1242" height="2688" viewBox="0 0 1242 2688">
+  <rect width="1242" height="2688" fill="#000000"/>
+  <g transform="translate(621,800)">
+    <path d="M-80 0 L0-110 L80 0" stroke="#2563eb" stroke-width="24" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="0" cy="-110" r="16" fill="#2563eb"/>
+    <line x1="0" y1="-55" x2="0" y2="120" stroke="#2563eb" stroke-width="24" stroke-linecap="round"/>
+  </g>
+  <text x="621" y="1000" text-anchor="middle" fill="white" font-family="sans-serif" font-size="72" font-weight="900">OpenSend</text>
+  <text x="621" y="1090" text-anchor="middle" fill="#a0a0a0" font-family="sans-serif" font-size="36">Send files. Share links. Done.</text>
+</svg>

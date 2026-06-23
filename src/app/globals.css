@@ -1,26 +1,92 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Dark mode (default) — true black canvas */
+  --color-bg-base: #000000;
+  --color-bg-surface: #0d0d0d;
+  --color-bg-surface-muted: #1a1a1a;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a0a0a0;
+  --color-text-muted: #8a8a8a;
+  --color-border-default: rgba(255, 255, 255, 0.06);
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-error: #ff4d4d;
+
+  --color-background: #000000;
+  --color-foreground: #ffffff;
+  --color-muted: #1a1a1a;
+  --color-muted-foreground: #8a8a8a;
+  --color-primary: #2563eb;
+  --color-primary-foreground: #ffffff;
+  --color-destructive: #ff4d4d;
+  --color-border: rgba(255, 255, 255, 0.06);
+
+  /* Typography utilities */
+  --text-hero: clamp(2.5rem, 6vw, 4.5rem);
+  --text-display: clamp(1.75rem, 3.5vw, 2.25rem);
+  --text-stat: clamp(2.5rem, 4vw, 3.5rem);
+  --text-label: 0.75rem;
+
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-bg-base);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility text-hero {
+  font-size: var(--text-hero);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+@utility text-display {
+  font-size: var(--text-display);
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+@utility text-stat {
+  font-size: var(--text-stat);
+  font-weight: 800;
+  line-height: 1;
+}
+
+@utility text-label {
+  font-size: var(--text-label);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Light mode via prefers-color-scheme */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-bg-base: #ffffff;
+    --color-bg-surface: #f5f5f5;
+    --color-bg-surface-muted: #ebebeb;
+    --color-text-primary: #000000;
+    --color-text-secondary: #4a4a4a;
+    --color-text-muted: #8a8a8a;
+    --color-border-default: rgba(0, 0, 0, 0.06);
+    --color-error: #d32f2f;
+
+    --color-background: #ffffff;
+    --color-foreground: #000000;
+    --color-muted: #ebebeb;
+    --color-muted-foreground: #8a8a8a;
+    --color-border: rgba(0, 0, 0, 0.06);
+  }
 }

@@ -1,0 +1,83 @@
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "./types.js";
+
+export type Client = SupabaseClient<Database>;
+
+function env(key: string): string {
+  return process.env[key] ?? "";
+}
+
+/**
+ * Authenticates an access token:
+ * 1. SHA-256 hash the raw token
+ * 2. Look up hash in mcp_tokens (via service-role client)
+ * 3. Update last_used_at
+ * 4. Check revoked_at
+ * 5. Return a service-role client + userId
+ *
+ * All subsequent data queries MUST filter by userId — the application
+ * layer enforces user data isolation since the service role bypasses RLS.
+ */
+export async function authenticateToken(
+  rawToken: string,
+): Promise<{ client: Client; userId: string }> {
+  const supabaseUrl = env("NEXT_PUBLIC_SUPABASE_URL") || env("SUPABASE_URL");
+  const serviceKey = env("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey =
+    env("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") || env("SUPABASE_ANON_KEY");
+
+  if (!supabaseUrl || !anonKey) {
+    throw new Error(
+      "Missing Supabase credentials. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.",
+    );
+  }
+  if (!serviceKey) {
+    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY for token validation.");
+  }
+
+  // SHA-256 hash the raw token
+  const hashBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(rawToken),
+  );
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const tokenHash = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  // Create service-role client for auth-only queries
+  const admin = createClient(supabaseUrl, serviceKey);
+
+  // Look up the token hash
+  const { data: records, error: lookupError } = await (admin
+    .from("opensend_mcp_tokens") as any)
+    .select("user_id, id, revoked_at")
+    .eq("token_hash", tokenHash);
+
+  if (lookupError)
+    throw new Error(
+      `Token validation failed: unable to verify access token. ${lookupError.message}`,
+    );
+  if (!records || records.length === 0) {
+    throw new Error(
+      "Authentication failed: Invalid access token. The token provided does not match any active token.",
+    );
+  }
+
+  const record = records[0] as { user_id: string; id: string; revoked_at: string | null };
+
+  if (record.revoked_at) {
+    throw new Error(
+      "Authentication failed: This access token has been revoked.",
+    );
+  }
+
+  // Update last_used_at
+  await (admin.from("mcp_tokens") as any)
+    .update({ last_used_at: new Date().toISOString() } as any)
+    .eq("id", record.id);
+
+  // Return a service-role client for data queries
+  const client = createClient<Database>(supabaseUrl, serviceKey);
+  return { client, userId: record.user_id };
+}
