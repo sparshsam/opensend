@@ -27,8 +27,9 @@
 - **No account required** — open and send instantly
 - **Direct device-to-device** — files never touch a cloud server
 - **QR pairing & pair codes** — scan to connect or enter a 6-character code
+- **Multi-file transfer** — send up to 20 files at once (any type, mixed formats)
 - **Two transfer methods** — Direct Transfer (WebRTC P2P) and Cloud Transfer (temporary upload)
-- **Up to 50 MB** — per file
+- **Up to 50 MB per file** — 20 files max per batch
 - **Cross-platform** — Windows, Android, iOS, macOS, Linux, Web
 - **Free & ad-free** — always
 - **Open-source** — AGPLv3
@@ -94,7 +95,7 @@ OpenSend is designed as a **transfer terminal** — not a dashboard. Every scree
 - No cards, no dashboard widgets
 - Receipt/ticket pattern for results
 
-Brand color: `#2563EB` — rich action blue.
+Brand color: `#BC3FDE` — vibrant purple.
 
 ## MCP Server
 

@@ -41,6 +41,40 @@ The relay path (Supabase Storage) remains as a fallback when direct P2P cannot b
 9. **Verify** — Sender sends SHA-256 checksum, receiver validates
 10. **Complete** — Session marked complete, file saved to downloads
 
+## Batch (Multi-File) Protocol v0.2.9
+
+OpenSend supports transferring up to 20 files in a single session. The batch protocol extends the signaling flow:
+
+```
+batch-metadata → (metadata → chunks → checksum → checksum-ok → file-complete) × N → batch-complete
+```
+
+### Batch Flow
+
+1. **Batch Metadata** — Sender sends `batch-metadata` with file count, total size, and file list (name, size, mime type for each)
+2. **Per-File Transfer** — For each file i in 0..N-1:
+   - Send file `metadata` (name, size, type, SHA-256 checksum)
+   - Send chunks in 16KB blocks with per-chunk acknowledgement
+   - Send `checksum` when file done
+   - Receiver verifies SHA-256, triggers individual file download
+   - Receiver sends `checksum-ok`
+   - Sender sends `file-complete` with index and name
+3. **Batch Complete** — After all files, sender sends `batch-complete`; receiver marks batch done
+
+### Progress Tracking
+
+Progress is reported at two levels:
+- **File progress**: bytes sent / file size for current file
+- **Overall progress**: total bytes sent across all files / total batch size
+
+Additional batch progress fields: `currentFileIndex`, `fileCount`, `currentFileName`, `overallPercent`, `filesCompleted`
+
+### Download Behavior
+
+- Each file is downloaded individually as it's verified (preserving original filenames)
+- If the browser blocks multiple automatic downloads, manual download buttons appear for each completed file
+- No ZIP bundling is performed
+
 ## ICE Servers
 
 ```javascript

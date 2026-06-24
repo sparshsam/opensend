@@ -1,5 +1,67 @@
 # Changelog
 
+## v0.2.13 (2026-06-24) — Multi-File Reliability + iPhone Fixes
+
+### Fixed
+- **iPhone → desktop connection**: Receiver was missing `poll.onSignal` handler — ICE candidates from iPhone (trickle ICE) were never processed. Android bundled candidates in SDP so it worked; iOS sends them separately. Added `poll.onSignal(msg => engine.handleSignal(msg))` on receiver.
+- **Chunk ack listener race**: Per-chunk ack used `{ once: true }` — consumed by the next string message regardless of match. Any intermediate message (progress, metadata) caused 500ms timeout + retry, making small files take many seconds. Changed to persistent listener with `removeEventListener` cleanup.
+- **Slow transfers**: Same root cause as above — fixed.
+- **ICE disconnect race**: Connection "disconnected" no longer immediately fails — waits 5 seconds for possible recovery.
+- **Download All**: Synchronous anchor creation loop only fired the last download. Changed to `setTimeout` with 300ms delays between each.
+- **PDF opened inline on iOS**: Blob URLs now use `type: "application/octet-stream"` to force download prompt on all file types.
+- **Single file had no manual download link**: Engine auto-downloaded single files via `triggerDownload()` before UI could render links. Removed auto-download — all files appear as tappable links on completion.
+- **Invalid pair code**: Receiver no longer shows generic "Transfer failed" — stays on code entry screen with specific error messages.
+- **WebRTC error handling**: `RTCPeerConnection`, `createDataChannel`, `createOffer`/`setLocalDescription` all wrapped in try/catch with diagnostic logging.
+
+### Added
+- **Download All button**: Uses `navigator.share({ files })` on iOS (share sheet with all files) — falls back to sequential anchor clicks on desktop.
+- **Sender diagnostics**: Error messages include last 5 engine diagnostic events. "Copy Diagnostics" includes full engine log.
+- **Sender completion page**: Shows file list with names/sizes for batch transfers, "Back to home" button.
+- **Receiver completion page**: Unified "Transfer complete" header, file list with per-file download links.
+- **PollSignaling logging**: Signal `send()` now logs request type, HTTP status, and errors to console.
+- **`cursor-pointer`**: Added to all back buttons, method selector buttons, history filter tabs.
+- **Receive page reordered**: Code entry first (primary action), QR info section second.
+
+### Changed
+- **Version bump**: 0.2.13
+- **Deployment domain**: `opensendbysparsh.vercel.app` set as primary alias.
+- **Receiver help text**: "Tap a file to download it. Your browser will prompt you where to save it." (platform-neutral).
+
+### Technical
+- Chunk size reduced to 8KB for Safari compatibility.
+- Message queue added to WebRTC engine for serial async processing.
+- `batch-received` signal added to protocol — sender waits for receiver confirmation before marking complete.
+- Database migration `20260624000010` — added `file_count`, `total_size`, `transfer_type` to `opensend_guest_sessions`.
+- Guest sessions API now validates: max 20 files, max 50 MB per file, max 500 MB total.
+
+## v0.2.12 (2026-06-24) — Multi-File Session Fix + Polish
+
+### Added
+- **Multi-file transfer**: send up to 20 files in a single transfer session via Direct Transfer
+- **Batch WebRTC protocol**: `batch-metadata` → (metadata → chunks → checksum → file-complete) × N → `batch-complete`
+- **Send page**: multi-file selection with `multiple` input, file list with per-file size, remove buttons, total size display, "Add more files" button
+- **Receive page**: shows file count, total size, current file name, current file progress, overall batch progress bar, speed, ETA
+- **Progress display**: dual progress bars — current file progress and overall batch progress
+- **Individual file downloads**: each file verified separately and downloaded; manual download buttons if browser blocks automatic multi-download
+- **Batch-aware local history**: new fields `transferType`, `fileCount`, `totalSize`, `fileNames`
+- **Refresh guard**: `beforeunload` warning during active transfers on both send and receive pages
+- **`file_count` field** in guest sessions API
+
+### Changed
+- **QR size**: reduced to 240px with responsive padding (mobile-optimized)
+- **Footer**: reduced padding on mobile (`py-8 sm:py-12`, `mt-16 sm:mt-28`), centered text on small screens
+- **README**: updated features with multi-file support; fixed brand color from `#2563EB` to `#BC3FDE` (purple)
+
+### Fixed
+- **Brand color in README**: was `#2563EB` (blue) — corrected to `#BC3FDE` (purple) matching the actual brand
+
+### Technical
+- `WebRTCEngine.sendFiles(files)` — sequential batch transfer with per-file checksum verification
+- `BatchMetadata`, `BatchFileInfo` interfaces for batch protocol
+- `onFileDownloaded`, `onBatchMetadata`, `onBatchComplete` callbacks on WebRTCEngine
+- `TransferProgress` extended with: `currentFileIndex`, `fileCount`, `currentFileName`, `overallPercent`, `filesCompleted`
+- `LocalHistoryEntry` extended with batch fields
+
 ## v0.2.8 (2026-06-24)
 
 ### Fixed

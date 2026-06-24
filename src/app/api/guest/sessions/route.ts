@@ -2,39 +2,75 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generatePairCode } from "@/lib/ephemeral-names";
 
+const MAX_FILES = 20;
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_TOTAL_SIZE = 500 * 1024 * 1024; // 500 MB
+
 // POST /api/guest/sessions — create a guest transfer session
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sender_name, file_name, file_size, mime_type } = body;
+    const { sender_name, file_name, file_size, mime_type, file_count, total_size } = body;
 
     if (!sender_name || !file_name) {
       return NextResponse.json({ error: "Sender name and file name required." }, { status: 400 });
     }
 
+    // ── Validation ──
+    const count = file_count || 1;
+    const size = file_size || 0;
+    const total = total_size || size;
+
+    if (count > MAX_FILES) {
+      return NextResponse.json({ error: `Too many files. Maximum: ${MAX_FILES} files per session.` }, { status: 400 });
+    }
+
+    if (size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: `File too large. Maximum: 50 MB per file.` }, { status: 400 });
+    }
+
+    if (total > MAX_TOTAL_SIZE) {
+      return NextResponse.json({ error: `Total transfer size exceeds 500 MB limit.` }, { status: 400 });
+    }
+
     const admin = createAdminClient();
     const transferCode = generatePairCode();
     const transferSecret = crypto.randomUUID();
+    const isBatch = count > 1;
+
+    const insertPayload: Record<string, unknown> = {
+      transfer_code: transferCode,
+      transfer_secret: transferSecret,
+      sender_ephemeral_id: sender_name,
+      file_name,
+      file_size: size,
+      mime_type: mime_type || "application/octet-stream",
+      file_count: count,
+      total_size: total,
+      transfer_type: isBatch ? "batch" : "single",
+      status: "waiting",
+      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    };
+
+    console.log("[GuestSession] Creating session:", JSON.stringify(insertPayload, null, 2));
 
     const { data: session, error } = await admin
       .from("opensend_guest_sessions")
-      .insert({
-        transfer_code: transferCode,
-        transfer_secret: transferSecret,
-        sender_ephemeral_id: sender_name,
-        file_name,
-        file_size: file_size || 0,
-        mime_type: mime_type || "application/octet-stream",
-        status: "waiting",
-        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
     if (error) {
-      console.error("Guest session error:", error);
-      return NextResponse.json({ error: "Failed to create session." }, { status: 500 });
+      console.error("[GuestSession] Database insert error:", JSON.stringify(error));
+      return NextResponse.json({
+        error: `Database error: ${error.message || "Unknown database error"}`,
+        details: error.details || null,
+        hint: error.hint || null,
+        code: error.code || null,
+      }, { status: 500 });
     }
+
+    console.log("[GuestSession] Created session:", session.id);
 
     return NextResponse.json({
       session_id: session.id,
@@ -44,8 +80,11 @@ export async function POST(request: NextRequest) {
       expires_at: session.expires_at,
     });
   } catch (error) {
-    console.error("Create guest session error:", error);
-    return NextResponse.json({ error: "Failed to create session." }, { status: 500 });
+    console.error("[GuestSession] Create error:", error);
+    const message = error instanceof Error ? error.message : "Failed to create session.";
+    return NextResponse.json({
+      error: `Server error: ${message}`,
+    }, { status: 500 });
   }
 }
 

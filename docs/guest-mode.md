@@ -39,6 +39,8 @@ These are random, temporary, and not stored on any server.
 |----------|-------|
 | Session lifetime | 15 minutes |
 | Transfer code | 6 alphanumeric characters |
+| Max files per session | 20 |
+| Max file size | 50 MB per file |
 | Security | Pair code identifies session; transfer_secret protects sender-only actions |
 | Storage | None (direct P2P) or temporary cloud (Cloud Transfer) |
 | History | Local only (browser localStorage) |
@@ -46,7 +48,7 @@ These are random, temporary, and not stored on any server.
 ## Transfer Methods
 
 ### Direct Transfer
-- Sender generates a pair code and QR code
+- Sender selects one or more files (up to 20) and generates a pair code and QR code
 - Receiver scans QR with their phone camera or enters the pair code
 - Session links automatically
 - WebRTC establishes direct P2P connection
@@ -82,10 +84,13 @@ Sender actions (cancel, update metadata) require the full `transfer_secret` UUID
 
 ## Limitations
 
-- Max file size: 50 MB
+- Max files per batch: 20
+- Max file size: 50 MB per file
 - Direct Transfer session expires in 15 minutes
 - Cloud Transfer link expires in 24 hours
 - No transfer resume on failure
+- Multiple file downloads may require browser permission (manual download buttons shown as fallback)
+- No ZIP bundling
 - Same-network recommended for best Direct Transfer performance
 - Cross-account friend transfers not yet supported
 

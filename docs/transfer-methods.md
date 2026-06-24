@@ -1,4 +1,4 @@
-# OpenSend Transfer Methods v0.2.6
+# OpenSend Transfer Methods v0.2.9
 
 OpenSend supports three transfer methods. The default and recommended method is **Direct Transfer**.
 
@@ -14,13 +14,14 @@ OpenSend supports three transfer methods. The default and recommended method is 
 
 Uses WebRTC to establish a direct peer-to-peer connection between devices.
 
-- Sender generates a pair code + QR code
+- Sender selects one or more files (up to 20) and generates a pair code + QR code
 - Receiver scans QR or enters the code
 - STUN servers for NAT traversal (Google public STUN)
 - TURN-ready for symmetric NAT (configurable via env vars)
-- SHA-256 checksum verification on completed transfers
+- SHA-256 checksum verification on completed transfers (per-file)
 - Chunked transfer with per-chunk acknowledgement (3 retry attempts per chunk)
-- 50 MB file limit
+- **Multi-file batch transfer**: up to 20 files, any type/mix, sequential transfer with dual progress bars
+- 50 MB per file limit, 20 files max per batch
 - Session expires after 15 minutes
 
 **Best for:** Nearby devices or normal browser-to-browser transfer.
@@ -46,3 +47,13 @@ Temporary upload/download via Supabase Storage. No WebRTC pairing needed.
 - Download count tracking
 
 **Best for:** When direct connection fails or the user prefers a simple link-based transfer.
+
+## Multi-File Limits
+
+| Limit | Value |
+|-------|-------|
+| Max files per batch | 20 |
+| Max file size | 50 MB per file |
+| Transfer type | Sequential (file-by-file) |
+| Download mode | Individual files (no ZIP) |
+| Browser permission | Multiple downloads may trigger browser blocks; manual download buttons provided as fallback |

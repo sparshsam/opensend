@@ -128,7 +128,7 @@ export default function HistoryPage() {
           <button
             key={tab.key}
             onClick={() => setFilter(tab.key)}
-            className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
+            className={`rounded-full px-5 py-2 text-sm font-semibold transition cursor-pointer ${
               filter === tab.key
                 ? "bg-bg-surface-muted text-text-primary"
                 : "text-text-secondary hover:text-text-primary"

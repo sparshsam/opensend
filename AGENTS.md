@@ -30,6 +30,11 @@ OpenSend — Free, ad-free, open-source file sharing. Direct device-to-device tr
 | v0.2.6 | **UX Cleanup + Pairing Fix** — dedicated /send and /receive pages, QR component, transfer method rename, homepage cleanup, guest upload endpoint, pairing secret model fix |
 | v0.2.7 | **QR Link Fix + Direct Transfer Handoff** — QR encodes URL (not JSON), auto-join from URL params, WebRTC signal forwarding fix, mobile bottom nav, iOS safe area, status text cleanup, diagnostics button |
 | v0.2.8 | **Download Prompt + Completion State Fix** — download prompt with delayed URL revoke, `checksum-ok`/`checksum-fail` handlers in engine, `_transferCompleted` flag prevents connection-close-overwrites-completed, ICE tracking fix |
+| v0.2.9 | **Multi-File Transfer** — batch protocol, up to 20 files, dual progress bars, per-file checksums |
+| v0.2.10 | **Session Creation Fix** — `file_count`/`total_size`/`transfer_type` columns, API validation, error surfacing |
+| v0.2.11 | **Reliability + Completion Truth** — `batch-received` signal, 8KB chunks, bufferedAmount backpressure, per-file timeout, Safari compatibility, message queue |
+| v0.2.12 | **Batch Integrity + iPhone Picker** — serialized message queue fixes race conditions, `<label>` file picker for iOS, cursor pointers |
+| v0.2.13 | **iPhone Connection Fix + Download Polish** — receiver `poll.onSignal` handler for ICE candidates, persistent chunk ack listener, `application/octet-stream` blob URLs, Download All with delays, no auto-download (always manual links), back-to-home buttons |
 
 ## Architecture
 
@@ -63,14 +68,14 @@ Statuses enforced server-side on `opensend_guest_sessions`:
 - `cancelled` — either side cancelled
 - `expired` — 15-minute TTL reached
 
-### Sender State Machine
+### Sender State Machine (v0.2.9 — Multi-File)
 ```
-select-file → creating → waiting → receiver-joined → connecting → sending-file → verifying → completed (final)
-                                                                                              → failed (if connection drops before _transferCompleted)
+select-files → creating → waiting → receiver-joined → connecting → sending-file → verifying_file → sending_next → completed (final)
+                                                                                             → failed (if connection drops before _transferCompleted)
 ```
-States: `select-file` | `creating` | `waiting` | `cloud-uploading` | `cloud-ready` | `receiver-joined` | `connecting` | `sending-file` | `verifying` | `completed` | `failed`
+States: `select-files` | `creating` | `waiting` | `receiver-joined` | `connecting` | `sending-file` | `verifying` | `sending-next` | `completed` | `failed`
 
-### Receiver State Machine
+### Receiver State Machine (v0.2.9 — Multi-File)
 ```
 idle → looking-up → joining → connected → waiting-for-sender → receiving-file → verifying → completed (final)
                                                                                              → failed
@@ -78,17 +83,18 @@ idle → looking-up → joining → connected → waiting-for-sender → receivi
 States: `idle` | `looking-up` | `joining` | `connected` | `waiting-for-sender` | `receiving-file` | `verifying` | `completed` | `failed`
 
 ### Transfer Flow (Direct)
-1. Sender selects file, creates guest session (POST /api/guest/sessions)
+1. Sender selects one or more files (up to 20), creates guest session (POST /api/guest/sessions)
 2. QR shown with URL: `/receive?code=CODE&session=SESSION_ID`
 3. Receiver scans QR or enters code manually
 4. Receiver calls PATCH with `transfer_code` (not `transfer_secret`) to join
 5. Receiver sends "receiver-joined" signal via POST /api/guest/signal
 6. Sender's PollSignaling receives "receiver-joined", starts WebRTC offer
 7. Sender forwards subsequent signals (answer, ICE candidates) to `engine.handleSignal()`
-8. DataChannel opens, file transfers in 16KB chunks
-9. SHA-256 checksum computed on receiver, "checksum-ok" sent back over DataChannel
-10. Sender receives "checksum-ok" → `_transferCompleted = true` → "Sent successfully"
-11. Receiver triggers download prompt — blob with 10s URL lifetime
+8. DataChannel opens, **batch transfer** begins
+9. Batch protocol: `batch-metadata` → (metadata → chunks → checksum → checksum-ok → file-complete) × N → `batch-complete`
+10. Each file verified individually with SHA-256 checksum
+11. Receiver downloads per-file via `<a download>` links on completion page; Download All uses Web Share API (iOS) or sequential delayed anchor clicks (desktop)
+12. Sender marks `_transferCompleted = true` after receiving `batch-received` from receiver
 
 ### Key File Locations
 | File | Purpose |
@@ -105,8 +111,8 @@ States: `idle` | `looking-up` | `joining` | `connected` | `waiting-for-sender` |
 | `src/app/api/claim/[code]/route.ts` | Transfer metadata lookup |
 | `src/components/qr-display.tsx` | Server-rendered QR code using `qrcode` library |
 | `src/components/site-header.tsx` | Header + mobile bottom nav with iOS safe area |
-| `src/lib/webrtc/webrtc-engine.ts` | WebRTC engine: RTCPeerConnection, DataChannel, chunked transfer, SHA-256, progress, sendFile/acceptConnection, checksum-ok/checksum-fail handling, _transferCompleted flag |
-| `src/lib/webrtc/poll-signaling.ts` | HTTP polling signaling for guest users (no Supabase) |
+| `src/lib/webrtc/webrtc-engine.ts` | WebRTC engine: RTCPeerConnection, DataChannel, chunked transfer, SHA-256, batch protocol (sendFiles), message queue for serial async processing, bufferedAmount backpressure, per-file timeout, diagnostic logging |
+| `src/lib/webrtc/poll-signaling.ts` | HTTP polling signaling for guest users (no Supabase) — logs request/response/errors |
 | `src/lib/webrtc/signaling.ts` | Supabase Realtime signaling for signed-in users |
 | `src/lib/transfer-methods.ts` | Transfer method abstraction (Direct Transfer, Bluetooth, Cloud Transfer) |
 | `src/lib/ephemeral-names.ts` | Guest name generator ("Blue Falcon") + `generatePairCode()` using `crypto.getRandomValues()` |
@@ -172,3 +178,4 @@ States: `idle` | `looking-up` | `joining` | `connected` | `waiting-for-sender` |
 12. PATCH `/api/guest/sessions` accepts `transfer_code` for receiver join (limited to `receiver_name` + `status: "paired"`); full `transfer_secret` required for sender-level changes
 13. The `_transferCompleted` flag in WebRTCEngine prevents connection-close-after-completion from overwriting the completed state
 14. `handleDataChannelMessage` handles `checksum-ok` and `checksum-fail` to complete the sender's verification phase
+15. **Receiver must register `poll.onSignal(msg => engine.handleSignal(msg))`** before `poll.start()` — without this, iOS sender's trickle ICE candidates are never processed and connection fails

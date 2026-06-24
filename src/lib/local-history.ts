@@ -1,8 +1,10 @@
 /**
- * OpenSend v0.2.2 — Local-First Transfer History
+ * OpenSend v0.2.9 — Local-First Transfer History
  *
  * History is stored in localStorage for guest users.
  * Signed-in users also sync to Supabase, but local is primary.
+ *
+ * v0.2.9: Added batch transfer support (transferType, fileCount, totalSize, fileNames)
  */
 
 const HISTORY_KEY = "opensend_history";
@@ -18,6 +20,11 @@ export interface LocalHistoryEntry {
   method: "direct" | "relay";
   transferredAt: string;
   checksum?: string;
+  // Batch fields (v0.2.9)
+  transferType?: "single" | "batch";
+  fileCount?: number;
+  totalSize?: number;
+  fileNames?: string[];
 }
 
 /** Load all local history */

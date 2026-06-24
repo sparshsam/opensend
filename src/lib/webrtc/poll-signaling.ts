@@ -43,8 +43,9 @@ export class PollSignaling {
   async send(msg: SignalMessage) {
     if (!this._active) return;
 
+    console.log("[PollSignaling] Sending signal:", msg.type, JSON.stringify(msg.payload).slice(0, 200));
     try {
-      await fetch("/api/guest/signal", {
+      const res = await fetch("/api/guest/signal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -55,8 +56,11 @@ export class PollSignaling {
           payload: msg.payload,
         }),
       });
-    } catch {
-      // Silently fail — will retry via polling
+      if (!res.ok) {
+        console.warn("[PollSignaling] Send failed:", res.status, await res.text().catch(() => ""));
+      }
+    } catch (err) {
+      console.warn("[PollSignaling] Send error:", err);
     }
   }
 

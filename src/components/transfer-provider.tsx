@@ -117,7 +117,7 @@ export function TransferProvider({ children }: { children: ReactNode }) {
       fileSize: file.size,
       peerDevice: receiverDevice?.name || "Unknown Device",
       state: "negotiating",
-      progress: { bytesTransferred: 0, totalBytes: file.size, percent: 0, speedBps: 0, estimatedRemainingMs: null, chunkIndex: 0, totalChunks: 0 },
+      progress: { bytesTransferred: 0, totalBytes: file.size, percent: 0, speedBps: 0, estimatedRemainingMs: null, chunkIndex: 0, totalChunks: 0, currentFileIndex: 0, fileCount: 1, currentFileName: file.name },
       sessionId,
     };
     setActiveTransfers((prev) => [...prev, transferItem]);
@@ -194,7 +194,7 @@ export function TransferProvider({ children }: { children: ReactNode }) {
       fileSize: 0,
       peerDevice: session.sender_device?.name || "Unknown Device",
       state: "negotiating",
-      progress: { bytesTransferred: 0, totalBytes: 0, percent: 0, speedBps: 0, estimatedRemainingMs: null, chunkIndex: 0, totalChunks: 0 },
+      progress: { bytesTransferred: 0, totalBytes: 0, percent: 0, speedBps: 0, estimatedRemainingMs: null, chunkIndex: 0, totalChunks: 0, currentFileIndex: 0, fileCount: 1, currentFileName: "" },
       sessionId,
     };
     setActiveTransfers((prev) => [...prev, transferItem]);
