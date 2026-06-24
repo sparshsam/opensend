@@ -6,7 +6,9 @@
     <br />
     A clean alternative to SHAREit, Send Anywhere, and WeTransfer.
     <br />
-    Upload a file. Get a link. Share it. Done.
+    Send files directly between devices. No account required.
+    <br />
+    Scan a QR code or enter a pairing code. Transfers work between unrelated devices.
   </p>
 
   [![Build](https://img.shields.io/github/actions/workflow/status/sparshsam/opensend/ci.yml?branch=main&style=flat-square&label=build&color=2563eb)](https://github.com/sparshsam/opensend/actions)
@@ -22,15 +24,14 @@
 
 ## Features
 
-- **Upload & share** — files up to 50 MB
-- **Share link** or **claim code** — download from any device
-- **Auto-expires** 24 hours — nothing stored forever
-- **Manual delete** — remove files early
-- **Download tracking** — see how many times your file was downloaded
-- **No account required** to download — just the code
-- **GitHub OAuth** — optional sign-in for transfer history
-- **MCP server** — AI agents can manage your transfers
-- **PWA-ready** — install as an app on your phone
+- **No account required** — open and send instantly
+- **Direct device-to-device** — files never touch a cloud server
+- **QR pairing** — scan to connect
+- **Pair codes** — enter a 6-character code to receive
+- **Up to 50 MB** — per file
+- **Cross-platform** — Windows, Android, iOS, macOS, Linux, Web
+- **Free & ad-free** — always
+- **Open-source** — AGPLv3
 
 ## Quick Start
 

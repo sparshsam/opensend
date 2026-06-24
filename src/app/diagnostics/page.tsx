@@ -9,10 +9,9 @@ import { Monitor, Smartphone, Wifi, WifiOff, Activity } from "lucide-react";
 export default function DiagnosticsPage() {
   const { user } = useAuth();
   const { currentDevice, devices } = useDevice();
-  const guestDeviceRef = useRef<ReturnType<typeof getGuestDevice>>(null as any);
-  const [webRTCStatus, setWebRTCStatus] = useState<string>("checking...");
-  const [iceState, setIceState] = useState<string>("—");
-  const gd = guestDeviceRef.current ?? { name: "—", id: "—", platform: "—", browser: "—", os: "—" };
+  const [gd, setGd] = useState<ReturnType<typeof getGuestDevice>>({ name: "—", id: "—", platform: "—", browser: "—", os: "—", deviceType: "—", createdAt: "" });
+  const [webRTCStatus, setWebRTCStatus] = useState("checking...");
+  const [iceState, setIceState] = useState("—");
 
   useEffect(() => {
     // Check WebRTC support
@@ -23,7 +22,7 @@ export default function DiagnosticsPage() {
       hasWebRTC && hasDataChannel ? "available" : "not supported"
     );
     // Load guest device info on client only
-    guestDeviceRef.current = getGuestDevice();
+    setGd(getGuestDevice());
   }, []);
 
   return (
