@@ -1,13 +1,13 @@
 /**
- * OpenSend v0.2.5 — Transfer Methods
+ * OpenSend v0.2.6 — Transfer Methods
  *
  * Three transfer methods:
- *   1. Wi-Fi / Direct  — WebRTC P2P (primary)
- *   2. Bluetooth        — Browser Web Bluetooth (foundation only)
- *   3. Cloud            — Supabase Storage fallback
+ *   1. Direct Transfer — WebRTC P2P (primary, QR/code pairing)
+ *   2. Bluetooth        — Web Bluetooth (disabled, coming later for native apps)
+ *   3. Cloud Transfer   — Supabase Storage fallback (temporary upload/download)
  *
  * Each method is a capability-checkable, selectable transfer path.
- * The default is Wi-Fi / Direct.
+ * The default is Direct Transfer.
  */
 
 export type TransferMethod = "direct" | "bluetooth" | "cloud";
@@ -16,6 +16,7 @@ export interface TransferMethodInfo {
   id: TransferMethod;
   label: string;
   description: string;
+  helperText: string;
   icon: string;
   supported: boolean;
   supportMessage?: string;
@@ -26,8 +27,9 @@ export interface TransferMethodInfo {
 export const TRANSFER_METHODS: TransferMethodInfo[] = [
   {
     id: "direct",
-    label: "Wi-Fi / Direct",
+    label: "Direct Transfer",
     description: "Fastest method. Transfers directly between devices over your local network or the internet.",
+    helperText: "Best for nearby devices or normal browser-to-browser transfer.",
     icon: "Wifi",
     supported: typeof RTCPeerConnection !== "undefined",
     speed: "fast",
@@ -37,16 +39,18 @@ export const TRANSFER_METHODS: TransferMethodInfo[] = [
     id: "bluetooth",
     label: "Bluetooth",
     description: "Short-range wireless transfer. Great for nearby devices without internet.",
+    helperText: "Coming later for native apps.",
     icon: "Bluetooth",
-    supported: typeof navigator !== "undefined" && "bluetooth" in navigator,
+    supported: false, // Always disabled until truly supported
     speed: "medium",
     requiresNetwork: false,
-    supportMessage: "Bluetooth transfer is not supported in this browser yet. Try Chrome on Android or Windows.",
+    supportMessage: "Bluetooth transfer is coming later for native apps and is not supported in browsers yet.",
   },
   {
     id: "cloud",
-    label: "Cloud Relay",
-    description: "Fallback method. Files are temporarily uploaded to secure cloud storage and downloaded by the receiver.",
+    label: "Cloud Transfer",
+    description: "Uploads temporarily to cloud storage, then receiver downloads directly.",
+    helperText: "Uploads temporarily, then receiver downloads.",
     icon: "Cloud",
     supported: true,
     speed: "slow",

@@ -1,6 +1,33 @@
 # Changelog
 
-## v0.2.5 (2026-06-24)
+## v0.2.6 (2026-06-24)
+
+### Fixed
+- **Critical pairing bug**: receiver join now uses `transfer_code` instead of requiring `transfer_secret`, fixing "Invalid session secret" error
+- PATCH `/api/guest/sessions` now accepts `transfer_code` for receiver join (limited to `receiver_name` + `status: "paired"`)
+- Sender's `transfer_secret` is never exposed to receivers
+
+### Added
+- `/send` page: dedicated send flow with method selection, file picker, large QR+code display, and status states
+- `/receive` page: dedicated receive flow with QR info + pair code entry
+- `/api/guest/upload`: guest-compatible upload endpoint (no auth required, uses session secret)
+- `QRDisplay` component: server-rendered QR codes using `qrcode` library
+- Proper UI status states: Waiting, Connected, Connecting, Transferring, Verifying, Completed, Failed
+
+### Changed
+- **Homepage**: simplified to only Send and Receive cards (removed: Enter pair code button, transfer method selector, Wi-Fi/Direct/Bluetooth/Cloud pills)
+- **Send page**: clear flow — select file → choose method → generate code + large QR → wait → transfer
+- **Receive page**: shows QR scan info + pair code entry (pair code field moved here exclusively)
+- **QR**: now large (280px) and central, using proper `qrcode` library instead of placeholder box
+- **Transfer method labels**: `Wi-Fi / Direct` → `Direct Transfer`, `Cloud Relay` → `Cloud Transfer`
+- **Helper text** added for each method:
+  - Direct Transfer: "Best for nearby devices or normal browser-to-browser transfer."
+  - Cloud Transfer: "Uploads temporarily, then receiver downloads."
+  - Bluetooth: "Coming later for native apps."
+- **Bluetooth**: always disabled regardless of browser support until native app is built
+- **Cloud Transfer**: simpler path — upload to temporary storage, show download link/QR, receiver downloads directly (no WebRTC needed)
+- Updated docs/transfer-methods.md, docs/guest-mode.md
+- Version bumped to 0.2.6
 
 ### Added
 - Three transfer methods: Wi-Fi/Direct (primary), Bluetooth (foundation), Cloud (fallback)

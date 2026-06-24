@@ -118,15 +118,15 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { session_id, secret, status, receiver_name, file_name, file_size, mime_type, connection_type } = body;
+    const { session_id, secret, transfer_code, status, receiver_name, file_name, file_size, mime_type, connection_type } = body;
 
-    if (!session_id || !secret) {
-      return NextResponse.json({ error: "Session ID and secret required." }, { status: 400 });
+    if (!session_id || (!secret && !transfer_code)) {
+      return NextResponse.json({ error: "Session ID and secret or transfer_code required." }, { status: 400 });
     }
 
     const admin = createAdminClient();
 
-    // Verify the secret
+    // Verify the session exists
     const { data: session, error: lookupError } = await admin
       .from("opensend_guest_sessions")
       .select("*")
@@ -137,17 +137,29 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Session not found." }, { status: 404 });
     }
 
-    if (session.transfer_secret !== secret) {
-      return NextResponse.json({ error: "Invalid session secret." }, { status: 403 });
-    }
-
     const updates: Record<string, unknown> = {};
-    if (status) updates.status = status;
-    if (receiver_name) updates.receiver_ephemeral_id = receiver_name;
-    if (file_name) updates.file_name = file_name;
-    if (file_size !== undefined) updates.file_size = file_size;
-    if (mime_type) updates.mime_type = mime_type;
-    if (connection_type) updates.connection_type = connection_type;
+
+    if (secret === session.transfer_secret) {
+      // Full access with transfer_secret — allow all fields
+      if (status) updates.status = status;
+      if (receiver_name) updates.receiver_ephemeral_id = receiver_name;
+      if (file_name) updates.file_name = file_name;
+      if (file_size !== undefined) updates.file_size = file_size;
+      if (mime_type) updates.mime_type = mime_type;
+      if (connection_type) updates.connection_type = connection_type;
+    } else if (transfer_code && transfer_code === session.transfer_code) {
+      // Receiver join — only allow pairing (no sender-level changes)
+      if (status && status !== "paired") {
+        return NextResponse.json({ error: "Cannot change status beyond pairing without session secret." }, { status: 403 });
+      }
+      if (file_name || file_size !== undefined || mime_type || connection_type) {
+        return NextResponse.json({ error: "Cannot modify transfer metadata without session secret." }, { status: 403 });
+      }
+      if (receiver_name) updates.receiver_ephemeral_id = receiver_name;
+      if (status) updates.status = status;
+    } else {
+      return NextResponse.json({ error: "Invalid session secret or transfer_code." }, { status: 403 });
+    }
 
     const { data: updated, error } = await admin
       .from("opensend_guest_sessions")

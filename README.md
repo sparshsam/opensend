@@ -26,8 +26,8 @@
 
 - **No account required** — open and send instantly
 - **Direct device-to-device** — files never touch a cloud server
-- **QR pairing** — scan to connect
-- **Pair codes** — enter a 6-character code to receive
+- **QR pairing & pair codes** — scan to connect or enter a 6-character code
+- **Two transfer methods** — Direct Transfer (WebRTC P2P) and Cloud Transfer (temporary upload)
 - **Up to 50 MB** — per file
 - **Cross-platform** — Windows, Android, iOS, macOS, Linux, Web
 - **Free & ad-free** — always
@@ -50,8 +50,10 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```
 src/               Next.js 15 App Router
-├── app/page.tsx        Upload terminal (home)
-├── app/t/[code]/       Download by claim code
+├── app/page.tsx         Home (Send / Receive cards)
+├── app/send/            Send flow (file pick, method, QR + code, transfer)
+├── app/receive/         Receive flow (QR info, pair code entry, download)
+├── app/t/[code]/        Download by claim code
 ├── app/history/        Transfer history (signed-in users)
 ├── app/profile/        Profile + MCP tokens
 ├── app/privacy/        Privacy policy

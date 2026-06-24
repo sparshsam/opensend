@@ -1,6 +1,6 @@
 {
   "name": "OpenSend",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,24 +10,26 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.6.0",
+    "@supabase/supabase-js": "^2.107.0",
+    "clsx": "^2.1.0",
+    "lucide-react": "^0.400.0",
     "next": "^15",
+    "qrcode": "^1.5.4",
     "react": "^19",
     "react-dom": "^19",
-    "@supabase/supabase-js": "^2.107.0",
-    "@supabase/ssr": "^0.6.0",
-    "lucide-react": "^0.400.0",
-    "clsx": "^2.1.0",
     "tailwind-merge": "^2.6.0",
     "uuid": "^11.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
-    "typescript": "^5",
     "@types/node": "^22",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "^15"
+    "eslint-config-next": "^15",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
