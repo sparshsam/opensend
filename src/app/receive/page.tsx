@@ -30,7 +30,7 @@ const STATE_LABELS: Record<ReceiveState, string> = {
   "waiting-for-sender": "Waiting for sender",
   "receiving-file": "Receiving file",
   "verifying": "Verifying file",
-  "completed": "Complete",
+  "completed": "Downloaded successfully",
   "failed": "Failed",
 };
 
@@ -69,6 +69,7 @@ function ReceiveContent() {
       `Code: ${enteredCode || "--"}`,
       `Role: receiver`,
       `State: ${receiveState}`,
+      `Completed: ${receiveState === "completed"}`,
       `Last error: ${error ?? "none"}`,
       "============================",
     ].join("\n");
@@ -239,7 +240,7 @@ function ReceiveContent() {
         <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-accent/10">
           <Check className="size-10 text-accent" />
         </div>
-        <h1 className="text-display text-text-primary">Complete</h1>
+        <h1 className="text-display text-text-primary">Downloaded successfully</h1>
         <p className="text-sm text-text-muted">{fileName ? `${fileName} downloaded` : "File saved to your downloads"}</p>
         <Button variant="primary" onClick={() => router.push("/")}>
           Back to home

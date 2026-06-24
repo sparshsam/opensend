@@ -38,6 +38,9 @@ interface DiagnosticInfo {
   lastSignal: string;
   lastError: string | null;
   sendState: SendState;
+  transferCompleted: boolean;
+  bytesSent: number;
+  expectedBytes: number;
 }
 
 const STATE_LABELS: Record<SendState, string> = {
@@ -50,7 +53,7 @@ const STATE_LABELS: Record<SendState, string> = {
   "connecting": "Creating secure connection",
   "sending-file": "Sending file",
   "verifying": "Verifying transfer",
-  "completed": "Complete",
+  "completed": "Sent successfully",
   "failed": "Failed",
 };
 
@@ -128,6 +131,9 @@ export default function SendPage() {
     lastSignal: lastSignalType,
     lastError: error,
     sendState,
+    transferCompleted: sendState === "completed",
+    bytesSent: transferProgress?.bytesTransferred ?? 0,
+    expectedBytes: transferProgress?.totalBytes ?? 0,
   });
 
   const copyDiagnostics = async () => {
@@ -138,6 +144,8 @@ export default function SendPage() {
       `Code: ${diag.code ?? "--"}`,
       `Role: ${diag.role}`,
       `State: ${diag.sendState}`,
+      `Completed: ${diag.transferCompleted}`,
+      `Bytes sent: ${diag.bytesSent} / ${diag.expectedBytes}`,
       `Signaling: ${diag.signalingState}`,
       `ICE: ${diag.iceState}`,
       `DataChannel: ${diag.dcState}`,
@@ -523,7 +531,7 @@ export default function SendPage() {
           <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-accent/10">
             <Check className="size-8 text-accent" />
           </div>
-          <h1 className="text-display text-text-primary">Complete</h1>
+          <h1 className="text-display text-text-primary">Sent successfully</h1>
           <p className="text-sm text-text-muted">{selectedFile?.name} sent successfully</p>
         </div>
       )}

@@ -1,6 +1,20 @@
 # Changelog
 
-## v0.2.7 (2026-06-24)
+## v0.2.8 (2026-06-24)
+
+### Fixed
+- **Receiver opens file in browser instead of downloading** — `URL.revokeObjectURL()` was called immediately after `a.click()`, causing browsers to fall back to inline preview. Now revoked after 10s delay. Anchor element is properly appended/removed from DOM.
+- **Sender shows "Failed" after successful transfer** — After file transfer completes, the RTCPeerConnection transitions to `disconnected`/`failed` state, which triggered `this.setState("error")`, overwriting the "completed" state. Added `_transferCompleted` flag — once set, connection state changes are ignored.
+
+### Added
+- `_transferCompleted` flag in WebRTCEngine — prevents connection state changes from overwriting completion
+- Diagnostics include: `transferCompleted`, `bytesSent`, `expectedBytes` fields
+
+### Changed
+- **Sender UX copy**: "Complete" → "Sent successfully"
+- **Receiver UX copy**: "Complete" → "Downloaded successfully"
+- Download anchor appended to DOM before click and removed after (reliable cross-browser behavior)
+- MIME type preserved for correct file metadata display
 
 ### Fixed
 - **QR now encodes a URL** instead of raw JSON — phone cameras open the receive page directly

@@ -82,6 +82,8 @@ export class WebRTCEngine {
   private _onChunk: ((data: Uint8Array) => void) | null = null;
   private _onMetadata: ((m: TransferMetadata) => void) | null = null;
   private _debug: boolean = false;
+  /** Once true, connection state changes no longer trigger error (completed is final) */
+  private _transferCompleted: boolean = false;
 
   state: TransferState = "idle";
   progress: TransferProgress = {
@@ -138,6 +140,9 @@ export class WebRTCEngine {
 
     this.pc.onconnectionstatechange = () => {
       this.log("Connection state:", this.pc?.connectionState);
+      if (this._transferCompleted) {
+        return;
+      }
       if (this.pc?.connectionState === "connected") {
         this.setState("transferring");
       } else if (this.pc?.connectionState === "failed" || this.pc?.connectionState === "disconnected") {
@@ -195,6 +200,9 @@ export class WebRTCEngine {
 
     this.pc.onconnectionstatechange = () => {
       this.log("Connection state:", this.pc?.connectionState);
+      if (this._transferCompleted) {
+        return;
+      }
       if (this.pc?.connectionState === "connected") {
         this.setState("transferring");
       } else if (this.pc?.connectionState === "failed" || this.pc?.connectionState === "disconnected") {
@@ -497,16 +505,21 @@ export class WebRTCEngine {
 
     if (match) {
       this.setState("completed");
+      this._transferCompleted = true;
       this._onComplete?.(true);
 
-      // Trigger download
+      // Trigger download with forced save-as
       const blob = new Blob([fullData], { type: this.receivedMetadata.mimeType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = this.receivedMetadata.fileName;
+      a.style.display = "none";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      // Delay revoke so browser can start the download
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
 
       this.sendJSON({ type: "checksum-ok", checksum: computedChecksum });
     } else {
