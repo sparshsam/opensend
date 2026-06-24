@@ -10,6 +10,8 @@ import { TransferMonitor } from "@/components/transfer-monitor";
 import { getGuestDevice } from "@/lib/guest-device";
 import { generateEphemeralName } from "@/lib/ephemeral-names";
 import { formatBytes } from "@/lib/utils";
+import { PollSignaling } from "@/lib/webrtc/poll-signaling";
+import { WebRTCEngine } from "@/lib/webrtc/webrtc-engine";
 
 type PageView = "landing" | "send" | "receive" | "enter-code";
 
@@ -31,6 +33,9 @@ export default function HomePage() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [enteredCode, setEnteredCode] = useState("");
   const [joining, setJoining] = useState(false);
+  const pollRef = useRef<PollSignaling | null>(null);
+  const engineRef = useRef<WebRTCEngine | null>(null);
+  const [connectionState, setConnectionState] = useState("");
 
   const handleFilePick = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

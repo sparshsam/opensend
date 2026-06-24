@@ -49,25 +49,28 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/guest/sessions — look up a guest session by transfer code
+// GET /api/guest/sessions — look up a guest session by transfer code or ID
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
+    const sessionId = searchParams.get("session_id");
     const secret = searchParams.get("secret");
 
-    if (!code) {
-      return NextResponse.json({ error: "Transfer code required." }, { status: 400 });
+    if (!code && !sessionId) {
+      return NextResponse.json({ error: "Transfer code or session ID required." }, { status: 400 });
     }
 
     const admin = createAdminClient();
-    const codeUpper = code.toUpperCase();
+    let query;
 
-    const { data: session, error } = await admin
-      .from("opensend_guest_sessions")
-      .select("*")
-      .eq("transfer_code", codeUpper)
-      .single();
+    if (sessionId) {
+      query = admin.from("opensend_guest_sessions").select("*").eq("id", sessionId);
+    } else {
+      query = admin.from("opensend_guest_sessions").select("*").eq("transfer_code", code!.toUpperCase());
+    }
+
+    const { data: session, error } = await query.single();
 
     if (error || !session) {
       return NextResponse.json({ error: "Session not found. Check the code." }, { status: 404 });
