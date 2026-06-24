@@ -13,6 +13,7 @@ OpenSend — Free, ad-free, open-source file sharing. Direct device-to-device tr
 - Vercel (deployment)
 - WebRTC (device-to-device P2P transfers)
 - MCP SDK (@modelcontextprotocol/sdk) — AI agent integration
+- qrcode (QR code generation on canvas)
 
 ## Version History
 
@@ -26,13 +27,22 @@ OpenSend — Free, ad-free, open-source file sharing. Direct device-to-device tr
 | v0.2.3 | True guest-to-guest transfers, pair codes |
 | v0.2.4 | HTTP polling signaling (no Supabase dependency for guests) |
 | v0.2.5 | Transfer methods (Wi-Fi/Bluetooth/Cloud), guest flow wiring |
+| v0.2.6 | **UX Cleanup + Pairing Fix** — dedicated /send and /receive pages, QR component, transfer method rename, homepage cleanup, guest upload endpoint, pairing secret model fix |
+| v0.2.7 | **QR Link Fix + Direct Transfer Handoff** — QR encodes URL (not JSON), auto-join from URL params, WebRTC signal forwarding fix, mobile bottom nav, iOS safe area, status text cleanup, diagnostics button |
+| v0.2.8 | **Download Prompt + Completion State Fix** — download prompt with delayed URL revoke, `checksum-ok`/`checksum-fail` handlers in engine, `_transferCompleted` flag prevents connection-close-overwrites-completed, ICE tracking fix |
 
 ## Architecture
 
+### Pages
+- `/` — Clean homepage with Send and Receive cards only (no method selector, no enter-code on homepage)
+- `/send` — Dedicated send flow: method + file selection → large QR + pair code → status states → transfer
+- `/receive` — Dedicated receive flow: QR scan info + pair code entry (auto-joins from `?code=&session=` URL params)
+- `/t/[code]` — Download page for Cloud Transfer claim codes
+
 ### Transfer Methods
-1. **Wi-Fi / Direct** (primary) — WebRTC P2P via STUN/TURN. Default.
-2. **Bluetooth** (foundation) — Browser Web Bluetooth, very limited support
-3. **Cloud** (fallback) — Supabase Storage upload/download
+1. **Direct Transfer** (primary) — WebRTC P2P via STUN/TURN. QR encodes receive page URL with params.
+2. **Bluetooth** (disabled) — Always `supported: false`. Shows "Coming later for native apps."
+3. **Cloud Transfer** (fallback) — Supabase Storage upload/download via `/api/guest/upload`. QR shows download URL.
 
 ### Signaling
 - **Guest transfers:** HTTP polling (`PollSignaling`) — no auth, no WebSocket. Both parties poll `/api/guest/signal` every 500ms.
@@ -53,41 +63,68 @@ Statuses enforced server-side on `opensend_guest_sessions`:
 - `cancelled` — either side cancelled
 - `expired` — 15-minute TTL reached
 
-### Homepage Views
-The homepage uses a `PageView` union: `"landing" | "send" | "receive" | "enter-code" | "qr-scan"`
-- **landing:** Send/Receive buttons, transfer method selector, active transfers, incoming requests
-- **send:** File picker → generate code → show QR + pair code → wait for receiver → WebRTC transfer
-- **receive:** Code entry prompt with ephemeral identity
-- **enter-code:** Large text input for 6-char pair code
+### Sender State Machine
+```
+select-file → creating → waiting → receiver-joined → connecting → sending-file → verifying → completed (final)
+                                                                                              → failed (if connection drops before _transferCompleted)
+```
+States: `select-file` | `creating` | `waiting` | `cloud-uploading` | `cloud-ready` | `receiver-joined` | `connecting` | `sending-file` | `verifying` | `completed` | `failed`
 
-### Guest Session API
-- `POST /api/guest/sessions` — create session (sender_name, file_name, file_size, mime_type)
-- `GET /api/guest/sessions?code=XXXXXX` — lookup by pair code (returns session info)
-- `GET /api/guest/sessions?session_id=UUID&secret=SECRET` — lookup by ID (for polling client)
-- `PATCH /api/guest/sessions` — update (requires session_id + secret)
-- `POST /api/guest/signal` — send signaling message (requires session_id + secret)
-- `GET /api/guest/signal?session_id=UUID&since=ISO` — poll for new signals
+### Receiver State Machine
+```
+idle → looking-up → joining → connected → waiting-for-sender → receiving-file → verifying → completed (final)
+                                                                                             → failed
+```
+States: `idle` | `looking-up` | `joining` | `connected` | `waiting-for-sender` | `receiving-file` | `verifying` | `completed` | `failed`
 
-### Key Files
+### Transfer Flow (Direct)
+1. Sender selects file, creates guest session (POST /api/guest/sessions)
+2. QR shown with URL: `/receive?code=CODE&session=SESSION_ID`
+3. Receiver scans QR or enters code manually
+4. Receiver calls PATCH with `transfer_code` (not `transfer_secret`) to join
+5. Receiver sends "receiver-joined" signal via POST /api/guest/signal
+6. Sender's PollSignaling receives "receiver-joined", starts WebRTC offer
+7. Sender forwards subsequent signals (answer, ICE candidates) to `engine.handleSignal()`
+8. DataChannel opens, file transfers in 16KB chunks
+9. SHA-256 checksum computed on receiver, "checksum-ok" sent back over DataChannel
+10. Sender receives "checksum-ok" → `_transferCompleted = true` → "Sent successfully"
+11. Receiver triggers download prompt — blob with 10s URL lifetime
+
+### Key File Locations
 | File | Purpose |
 |------|---------|
-| `src/lib/webrtc/webrtc-engine.ts` | WebRTC engine: RTCPeerConnection, DataChannel, chunked transfer, SHA-256, progress, sendFile/acceptConnection |
+| `src/app/page.tsx` | Homepage (Send/Receive cards only) |
+| `src/app/send/page.tsx` | Send flow: method + file → QR + code → status → transfer |
+| `src/app/receive/page.tsx` | Receive flow: QR info + code entry → auto-join → download |
+| `src/app/t/[code]/page.tsx` | Cloud Transfer download page |
+| `src/app/api/guest/sessions/route.ts` | Guest session CRUD (POST, GET, PATCH) |
+| `src/app/api/guest/signal/route.ts` | Guest signaling (POST, GET) |
+| `src/app/api/guest/upload/route.ts` | Guest cloud upload (no auth, session secret verified) |
+| `src/app/api/upload/route.ts` | Authenticated upload (account users) |
+| `src/app/api/download/[code]/route.ts` | File download by claim code |
+| `src/app/api/claim/[code]/route.ts` | Transfer metadata lookup |
+| `src/components/qr-display.tsx` | Server-rendered QR code using `qrcode` library |
+| `src/components/site-header.tsx` | Header + mobile bottom nav with iOS safe area |
+| `src/lib/webrtc/webrtc-engine.ts` | WebRTC engine: RTCPeerConnection, DataChannel, chunked transfer, SHA-256, progress, sendFile/acceptConnection, checksum-ok/checksum-fail handling, _transferCompleted flag |
 | `src/lib/webrtc/poll-signaling.ts` | HTTP polling signaling for guest users (no Supabase) |
 | `src/lib/webrtc/signaling.ts` | Supabase Realtime signaling for signed-in users |
-| `src/lib/transfer-methods.ts` | Transfer method abstraction (Wi-Fi, Bluetooth, Cloud) |
+| `src/lib/transfer-methods.ts` | Transfer method abstraction (Direct Transfer, Bluetooth, Cloud Transfer) |
 | `src/lib/ephemeral-names.ts` | Guest name generator ("Blue Falcon") + `generatePairCode()` using `crypto.getRandomValues()` |
-| `src/lib/guest-device.ts` | Local guest device identity (localStorage) |
-| `src/lib/local-history.ts` | Local-first transfer history (200 entries max) |
-| `src/lib/device-detect.ts` | Browser/platform detection |
-| `src/components/transfer-monitor.tsx` | Transfer progress UI (speed, %, ETA, compact/full) |
-| `src/components/transfer-provider.tsx` | Transfer context (account-based transfers) |
-| `src/components/device-provider.tsx` | Device registration context |
-| `src/components/theme-toggle.tsx` | Dark/light mode toggle (class-based, CSS variable overrides) |
-| `src/app/` | All API routes and pages |
-| `src/app/api/guest/sessions/route.ts` | Guest session CRUD |
-| `src/app/api/guest/signal/route.ts` | Guest signaling endpoint |
 | `src/app/diagnostics/page.tsx` | Diagnostics page (device, WebRTC, ICE, browser info) |
-| `supabase/migrations/` | All DB migrations (see below) |
+
+### API Endpoints
+| Method | Path | Purpose | Auth |
+|--------|------|---------|------|
+| POST | `/api/guest/sessions` | Create guest session | None |
+| GET | `/api/guest/sessions?code=` | Lookup by pair code | None |
+| GET | `/api/guest/sessions?session_id=` | Lookup by ID | None |
+| PATCH | `/api/guest/sessions` | Update session (secret for full, transfer_code for join) | transfer_code or secret |
+| POST | `/api/guest/signal` | Send signaling message | None (session existence check) |
+| GET | `/api/guest/signal?session_id=` | Poll for signals | None |
+| POST | `/api/guest/upload` | Upload file (guest cloud) | Session secret (header) |
+| POST | `/api/upload` | Upload file (account) | Supabase auth |
+| GET | `/api/download/[code]` | Download file | None |
+| GET | `/api/claim/[code]` | Transfer metadata | None |
 
 ### Database Migrations (Supabase, shared with OpenSprout)
 
@@ -95,7 +132,8 @@ The homepage uses a `PageView` union: `"landing" | "send" | "receive" | "enter-c
 |-----------|----------|---------|
 | `20260623000001` | `opensend_transfers` | Core transfer records |
 | `20260623000002` | `opensend_transfer_events` | Transfer event audit log |
-| `20260624000001` | `opensend_guest_transfers`, `opensend_guest_signals` (v0.2.5 rename) | Guest connectivity |
+| `20260623000003` | `opensend_mcp_tokens` | MCP auth tokens |
+| `20260623000004` | `opensend_storage` | Storage metadata |
 | `20260623000005` | `opensend_devices` | Device registry |
 | `20260623000006` | `opensend_transfer_sessions` | P2P session coordination |
 | `20260623000007` | `opensend_transfers` (alter) | P2P columns (session_id, checksum, device_ids) |
@@ -117,6 +155,7 @@ The homepage uses a `PageView` union: `"landing" | "send" | "receive" | "enter-c
 - **Font:** Noto Sans Math (Regular 400 only — faux-bold for heavier weights)
 - **Buttons:** Pill-shaped (`rounded-full`)
 - **Philosophy:** Transfer terminal, not dashboard
+- **Mobile:** Bottom nav (Transfer, History, Diagnostics, Profile) with iOS safe area
 
 ## Rules for AI Agents
 1. All OpenSend DB resources use `opensend_` prefix (never modify OpenSprout tables)
@@ -129,3 +168,7 @@ The homepage uses a `PageView` union: `"landing" | "send" | "receive" | "enter-c
 8. Theme toggle uses `style.setProperty()` to bypass Tailwind v4 CSS cascade issues
 9. `body {}` rules must be outside `@layer` blocks to survive Tailwind v4 compilation
 10. Contact for all OpenSend projects: sparshsam@gmail.com
+11. Do not claim real-device transfer success unless Sparsh manually confirms
+12. PATCH `/api/guest/sessions` accepts `transfer_code` for receiver join (limited to `receiver_name` + `status: "paired"`); full `transfer_secret` required for sender-level changes
+13. The `_transferCompleted` flag in WebRTCEngine prevents connection-close-after-completion from overwriting the completed state
+14. `handleDataChannelMessage` handles `checksum-ok` and `checksum-fail` to complete the sender's verification phase
