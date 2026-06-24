@@ -41,12 +41,30 @@ export type SignalMessage = {
 };
 
 const CHUNK_SIZE = 16384; // 16KB per chunk (standard WebRTC message size)
-const ICE_SERVERS = {
-  iceServers: [
+
+function getIceServers(): RTCIceServer[] {
+  const servers: RTCIceServer[] = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
-  ],
-};
+  ];
+
+  // TURN support via env vars (optional)
+  if (typeof process !== "undefined" && process.env) {
+    const turnUrls = process.env.NEXT_PUBLIC_TURN_URLS;
+    const turnUser = process.env.NEXT_PUBLIC_TURN_USERNAME;
+    const turnCred = process.env.NEXT_PUBLIC_TURN_CREDENTIAL;
+
+    if (turnUrls) {
+      servers.push({
+        urls: turnUrls.split(","),
+        username: turnUser || undefined,
+        credential: turnCred || undefined,
+      });
+    }
+  }
+
+  return servers;
+}
 
 export class WebRTCEngine {
   private pc: RTCPeerConnection | null = null;
@@ -90,7 +108,7 @@ export class WebRTCEngine {
   // ── SENDER: Initiate connection ──────────────────────────────
   async createConnection(sessionId: string, onSignal: (msg: SignalMessage) => void): Promise<RTCDataChannel> {
     this.log("Creating sender connection");
-    this.pc = new RTCPeerConnection(ICE_SERVERS);
+    this.pc = new RTCPeerConnection({ iceServers: getIceServers() });
     this.setState("negotiating");
 
     this.dataChannel = this.pc.createDataChannel("filedata", {
@@ -148,7 +166,7 @@ export class WebRTCEngine {
     onSignal: (msg: SignalMessage) => void,
   ): Promise<RTCDataChannel> {
     this.log("Creating receiver connection");
-    this.pc = new RTCPeerConnection(ICE_SERVERS);
+    this.pc = new RTCPeerConnection({ iceServers: getIceServers() });
     this.setState("negotiating");
 
     await this.pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -300,13 +318,52 @@ export class WebRTCEngine {
       setTimeout(resolve, 1000);
     });
 
-    // Send chunks
+    // Send chunks with acknowledgement
     this.setState("transferring");
+    const RETRY_MAX = 3;
+    const ACK_TIMEOUT = 500; // ms
+
     for (let i = 0; i < this.fileChunks.length; i++) {
-      if (this.dataChannel?.readyState !== "open") break;
+      if (this.dataChannel?.readyState !== "open") {
+        throw new Error("Connection lost during transfer");
+      }
 
       const chunk = this.fileChunks[i];
-      this.dataChannel.send(chunk.buffer as ArrayBuffer);
+      let retries = 0;
+      let acked = false;
+
+      while (!acked && retries < RETRY_MAX) {
+        try {
+          this.dataChannel.send(chunk.buffer as ArrayBuffer);
+        } catch (sendErr) {
+          retries++;
+          if (retries >= RETRY_MAX) {
+            throw new Error("Failed to send chunk after retries");
+          }
+          await new Promise((r) => setTimeout(r, 100 * retries));
+          continue;
+        }
+
+        // Wait for ack
+        acked = await new Promise<boolean>((resolve) => {
+          const timer = setTimeout(() => resolve(false), ACK_TIMEOUT);
+          const handler = (e: MessageEvent) => {
+            if (typeof e.data === "string") {
+              try {
+                const m = JSON.parse(e.data);
+                if (m.type === "chunk-ack" && m.chunk_index === i) {
+                  clearTimeout(timer);
+                  resolve(true);
+                }
+              } catch {}
+            }
+          };
+          this.dataChannel!.addEventListener("message", handler, { once: true });
+        });
+
+        if (!acked) retries++;
+      }
+
       this.progress.chunkIndex = i + 1;
       this.progress.bytesTransferred += chunk.length;
       this.progress.percent = Math.round((this.progress.bytesTransferred / this.progress.totalBytes) * 100);
@@ -369,6 +426,9 @@ export class WebRTCEngine {
         const chunk = new Uint8Array(e.data);
         this.receivedChunks.push(chunk);
         this.receivedBytes += chunk.length;
+
+        // Send chunk acknowledgement
+        this.sendJSON({ type: "chunk-ack", chunk_index: this.receivedChunks.length - 1 });
 
         this.progress.bytesTransferred = this.receivedBytes;
         this.progress.percent = this.receivedMetadata
