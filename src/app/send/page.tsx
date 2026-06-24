@@ -4,6 +4,7 @@ import { useCallback, useRef, useState, useEffect } from "react";
 import {
   Upload, ArrowUpFromLine, QrCode, Copy, Check, Loader2,
   Wifi, Cloud, Bluetooth, ArrowLeft, Share2, Link,
+  Bug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QRDisplay } from "@/components/qr-display";
@@ -17,15 +18,27 @@ import { useRouter } from "next/navigation";
 type SendState =
   | "select-file"
   | "creating"
-  | "waiting"             // Direct: QR/code shown, waiting for receiver
-  | "cloud-uploading"     // Cloud: uploading to storage
-  | "cloud-ready"         // Cloud: upload done, show download link
+  | "waiting"
+  | "cloud-uploading"
+  | "cloud-ready"
   | "receiver-joined"
   | "connecting"
-  | "transferring"
+  | "sending-file"
   | "verifying"
   | "completed"
   | "failed";
+
+interface DiagnosticInfo {
+  sessionId: string | null;
+  code: string | null;
+  role: string;
+  signalingState: string;
+  iceState: string;
+  dcState: string;
+  lastSignal: string;
+  lastError: string | null;
+  sendState: SendState;
+}
 
 const STATE_LABELS: Record<SendState, string> = {
   "select-file": "Select a file",
@@ -33,12 +46,12 @@ const STATE_LABELS: Record<SendState, string> = {
   "waiting": "Waiting for receiver",
   "cloud-uploading": "Uploading to cloud...",
   "cloud-ready": "Ready to share",
-  "receiver-joined": "Receiver joined! Connecting...",
-  "connecting": "Establishing connection...",
-  "transferring": "Transferring...",
-  "verifying": "Verifying checksum...",
-  "completed": "Transfer complete!",
-  "failed": "Transfer failed",
+  "receiver-joined": "Receiver joined",
+  "connecting": "Creating secure connection",
+  "sending-file": "Sending file",
+  "verifying": "Verifying transfer",
+  "completed": "Complete",
+  "failed": "Failed",
 };
 
 function MethodIcon({ id, className }: { id: TransferMethod; className?: string }) {
@@ -55,7 +68,6 @@ export default function SendPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Session state
   const [guestSessionId, setGuestSessionId] = useState<string | null>(null);
   const [guestSecret, setGuestSecret] = useState<string | null>(null);
   const [guestCode, setGuestCode] = useState<string | null>(null);
@@ -64,7 +76,13 @@ export default function SendPage() {
   const [sendState, setSendState] = useState<SendState>("select-file");
   const [transferProgress, setTransferProgress] = useState<TransferProgress | null>(null);
   const [connectionState, setConnectionState] = useState("");
-  const [countdown, setCountdown] = useState(900); // 15 min in seconds
+  const [countdown, setCountdown] = useState(900);
+
+  // Diagnostics state
+  const [signalingState, setSignalingState] = useState("idle");
+  const [iceState, setIceState] = useState("--");
+  const [dcState, setDcState] = useState("--");
+  const [lastSignalType, setLastSignalType] = useState("--");
 
   const pollRef = useRef<PollSignaling | null>(null);
   const engineRef = useRef<WebRTCEngine | null>(null);
@@ -74,7 +92,6 @@ export default function SendPage() {
   const isCloud = method === "cloud";
   const isDirect = method === "direct";
 
-  // Countdown timer
   useEffect(() => {
     if (!guestSessionId || sendState === "completed" || sendState === "failed") return;
     const timer = setInterval(() => {
@@ -101,12 +118,44 @@ export default function SendPage() {
     }
   }, []);
 
+  const buildDiagnosticInfo = (): DiagnosticInfo => ({
+    sessionId: guestSessionId,
+    code: guestCode,
+    role: "sender",
+    signalingState,
+    iceState,
+    dcState,
+    lastSignal: lastSignalType,
+    lastError: error,
+    sendState,
+  });
+
+  const copyDiagnostics = async () => {
+    const diag = buildDiagnosticInfo();
+    const text = [
+      "=== OpenSend Diagnostics ===",
+      `Session: ${diag.sessionId ?? "--"}`,
+      `Code: ${diag.code ?? "--"}`,
+      `Role: ${diag.role}`,
+      `State: ${diag.sendState}`,
+      `Signaling: ${diag.signalingState}`,
+      `ICE: ${diag.iceState}`,
+      `DataChannel: ${diag.dcState}`,
+      `Last signal: ${diag.lastSignal}`,
+      `Last error: ${diag.lastError ?? "none"}`,
+      "============================",
+    ].join("\n");
+    await navigator.clipboard.writeText(text);
+    alert("Diagnostics copied to clipboard");
+  };
+
   // ── CREATE GUEST SESSION ──
   const createGuestSession = useCallback(async () => {
     if (!selectedFile) return;
     setSending(true);
     setError(null);
     setSendState("creating");
+    setSignalingState("creating-session");
     try {
       const res = await fetch("/api/guest/sessions", {
         method: "POST",
@@ -127,41 +176,98 @@ export default function SendPage() {
       // ── DIRECT TRANSFER ──
       if (isDirect) {
         setSendState("waiting");
+        setSignalingState("waiting-for-receiver");
 
         const poll = new PollSignaling();
         pollRef.current = poll;
         poll.onStateChange((s) => {
-          if (s === "connecting") setConnectionState("Establishing signal...");
+          if (s === "connecting") setSignalingState("polling");
         });
 
+        // Sender signal handler: first handles receiver-joined, then forwards signals to engine
+        let engine: WebRTCEngine | null = null;
+
         poll.onSignal(async (msg) => {
+          setLastSignalType(msg.type);
+
+          // If engine exists, forward all signals (answer, ICE) to it
+          if (engine) {
+            await engine.handleSignal(msg);
+            return;
+          }
+
+          // First "receiver-joined" — start WebRTC
           if (msg.type === "receiver-joined") {
             setSendState("receiver-joined");
-            setConnectionState("Receiver found! Connecting...");
-            const engine = new WebRTCEngine();
+            setConnectionState("");
+            setSignalingState("creating-offer");
+
+            engine = new WebRTCEngine();
             engineRef.current = engine;
+
             engine.onProgress((p) => setTransferProgress(p));
             engine.onStateChange((s) => {
-              if (s === "transferring") { setSendState("transferring"); setConnectionState(""); }
-              if (s === "verifying") setSendState("verifying");
+              if (s === "transferring") {
+                setSendState("sending-file");
+                setConnectionState("");
+                setSignalingState("transferring");
+              }
+              if (s === "verifying") {
+                setSendState("verifying");
+                setSignalingState("verifying");
+              }
               if (s === "completed") {
                 setSendState("completed");
+                setDcState("closed");
                 poll.updateSessionStatus("completed");
                 poll.stop();
               }
               if (s === "error") {
                 setSendState("failed");
                 setError("Connection lost during transfer.");
+                poll.stop();
               }
             });
 
-            const dc = await engine.createConnection(data.session_id, (m) => poll.send(m));
-            await new Promise<void>((resolve) => {
-              if (dc.readyState === "open") resolve();
-              else dc.onopen = () => resolve();
-            });
-            await engine.sendFile(selectedFile);
-            poll.stop();
+            // Monitor ICE and DC state
+            const pc = (engine as any).pc as RTCPeerConnection | null;
+            if (pc) {
+              pc.oniceconnectionstatechange = () => {
+                setIceState(pc.iceConnectionState);
+                if (pc.iceConnectionState === "connected") {
+                  setSendState("connecting");
+                  setConnectionState("");
+                }
+              };
+            }
+
+            try {
+              setSendState("connecting");
+              setSignalingState("creating-offer");
+              const dc = await engine.createConnection(data.session_id, (m) => poll.send(m));
+              setSignalingState("waiting-for-answer");
+
+              dc.onopen = () => {
+                setDcState("open");
+              };
+              dc.onclose = () => setDcState("closed");
+              dc.onerror = () => setDcState("error");
+
+              await new Promise<void>((resolve, reject) => {
+                if (dc.readyState === "open") resolve();
+                dc.onopen = () => resolve();
+                const timeout = setTimeout(() => reject(new Error("DataChannel timeout")), 30000);
+                dc.onopen = () => { clearTimeout(timeout); resolve(); };
+              });
+
+              setSignalingState("sending-file");
+              await engine.sendFile(selectedFile);
+              poll.stop();
+            } catch (err: any) {
+              setSendState("failed");
+              setError(err.message || "Transfer failed");
+              poll.stop();
+            }
           }
         });
 
@@ -246,6 +352,7 @@ export default function SendPage() {
     setGuestCode(null); setGuestSessionId(null); setGuestSecret(null);
     setSelectedFile(null); setSendState("select-file"); setTransferProgress(null);
     setError(null); setConnectionState(""); setCloudShareUrl(null);
+    setSignalingState("idle"); setIceState("--"); setDcState("--"); setLastSignalType("--");
     pollRef.current?.stop();
     engineRef.current?.cleanup();
   };
@@ -263,7 +370,6 @@ export default function SendPage() {
           <p className="text-sm text-text-muted">You are: <span className="font-bold text-text-primary">{guestDevice}</span></p>
         </div>
 
-        {/* Transfer method selection */}
         <div className="space-y-3">
           <p className="text-label text-text-muted text-center">Transfer method</p>
           <div className="flex justify-center gap-2 flex-wrap">
@@ -291,7 +397,6 @@ export default function SendPage() {
           <p className="text-xs text-text-muted text-center italic">{methodInfo.helperText}</p>
         </div>
 
-        {/* File picker */}
         <div
           onClick={() => fileRef.current?.click()}
           className="rounded-2xl p-8 sm:p-12 bg-bg-surface-muted cursor-pointer text-center transition hover:bg-bg-surface-muted/80"
@@ -327,7 +432,6 @@ export default function SendPage() {
           </div>
         </div>
 
-        {/* Selected file preview */}
         <div className="rounded-2xl p-8 bg-bg-surface-muted text-center">
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-accent/10">
             <ArrowUpFromLine className="size-6 text-accent" />
@@ -350,15 +454,16 @@ export default function SendPage() {
     );
   }
 
-  // ── QR + CODE DISPLAY (Direct Transfer: waiting for receiver) ──
-  const showQrAndCode = sendState === "waiting" || sendState === "receiver-joined";
+  // ── QR DATA: encode a proper URL ──
+  const qrData = (() => {
+    if (cloudShareUrl) return cloudShareUrl; // Cloud: direct download URL
+    // Direct: receive page URL with code + session params
+    return `${window.location.origin}/receive?code=${guestCode}&session=${guestSessionId}`;
+  })();
 
-  // Cloud transfer QR data (shown after upload)
-  const qrData = cloudShareUrl
-    ? cloudShareUrl
-    : isDirect
-      ? JSON.stringify({ type: "opensend-join", session_id: guestSessionId, code: guestCode })
-      : `${window.location.origin}/t/${guestCode}`;
+  const showQrAndCode = sendState === "waiting" || sendState === "receiver-joined";
+  const isActiveTransfer = sendState === "receiver-joined" || sendState === "connecting" || sendState === "sending-file" || sendState === "verifying";
+  const isIdleOrDone = sendState === "completed" || sendState === "failed";
 
   return (
     <div className="space-y-8 py-4">
@@ -368,7 +473,6 @@ export default function SendPage() {
 
       {/* ── STATUS HEADERS ── */}
 
-      {/* Direct: Waiting for receiver */}
       {showQrAndCode && (
         <div className="text-center space-y-2">
           <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-accent/10">
@@ -379,7 +483,6 @@ export default function SendPage() {
         </div>
       )}
 
-      {/* Cloud: Uploading */}
       {sendState === "cloud-uploading" && (
         <div className="text-center space-y-4">
           <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-accent/10">
@@ -391,7 +494,6 @@ export default function SendPage() {
         </div>
       )}
 
-      {/* Cloud: Ready */}
       {sendState === "cloud-ready" && cloudShareUrl && (
         <div className="text-center space-y-2">
           <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-accent/10">
@@ -402,42 +504,42 @@ export default function SendPage() {
         </div>
       )}
 
-      {/* Active transfer progress states */}
-      {(sendState === "receiver-joined" || sendState === "connecting" || sendState === "transferring" || sendState === "verifying") && (
+      {isActiveTransfer && (
         <div className="text-center space-y-2">
           <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-accent/10">
-            <Loader2 className="size-8 text-accent animate-spin" />
+            {sendState === "sending-file" || sendState === "verifying" ? (
+              <Loader2 className="size-8 text-accent animate-spin" />
+            ) : (
+              <Loader2 className="size-8 text-accent animate-spin" />
+            )}
           </div>
           <h1 className="text-display text-text-primary">{STATE_LABELS[sendState]}</h1>
           {connectionState && <p className="text-sm text-text-muted">{connectionState}</p>}
         </div>
       )}
 
-      {/* Completed */}
       {sendState === "completed" && (
         <div className="text-center space-y-2">
           <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-accent/10">
             <Check className="size-8 text-accent" />
           </div>
-          <h1 className="text-display text-text-primary">Transfer complete!</h1>
+          <h1 className="text-display text-text-primary">Complete</h1>
           <p className="text-sm text-text-muted">{selectedFile?.name} sent successfully</p>
         </div>
       )}
 
-      {/* Failed */}
       {sendState === "failed" && (
         <div className="text-center space-y-2">
           <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-error/10">
             <Loader2 className="size-8 text-error" />
           </div>
-          <h1 className="text-display text-text-primary">Transfer failed</h1>
+          <h1 className="text-display text-text-primary">Failed</h1>
           {error && <p className="text-sm text-error">{error}</p>}
         </div>
       )}
 
       {/* ── QR + CODE SECTION ── */}
 
-      {/* Direct: Large QR + pair code */}
       {showQrAndCode && (
         <>
           <div className="flex justify-center">
@@ -467,7 +569,7 @@ export default function SendPage() {
           <div className="text-center space-y-1">
             <Loader2 className="mx-auto size-5 text-accent animate-spin" />
             <p className="text-sm text-text-muted">
-              {sendState === "receiver-joined" ? "Receiver connected!" : "Waiting for receiver..."}
+              {sendState === "receiver-joined" ? "Receiver joined" : "Waiting for receiver"}
             </p>
           </div>
 
@@ -477,7 +579,7 @@ export default function SendPage() {
         </>
       )}
 
-      {/* Cloud-ready: Show download link + QR */}
+      {/* ── CLOUD READY ── */}
       {sendState === "cloud-ready" && cloudShareUrl && (
         <>
           <div className="flex justify-center">
@@ -506,8 +608,8 @@ export default function SendPage() {
         </>
       )}
 
-      {/* ── TRANSFER PROGRESS (Direct) ── */}
-      {(sendState === "transferring" || sendState === "verifying") && transferProgress && (
+      {/* ── TRANSFER PROGRESS ── */}
+      {(sendState === "sending-file" || sendState === "verifying") && transferProgress && (
         <div className="rounded-2xl p-6 bg-bg-surface-muted space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-text-muted">{formatBytes(transferProgress.bytesTransferred)}</span>
@@ -526,18 +628,31 @@ export default function SendPage() {
         </div>
       )}
 
-      {/* ── COMPLETED ACTION ── */}
-      {sendState === "completed" && isDirect && (
-        <Button variant="primary" size="lg" className="w-full" onClick={resetSend}>
-          Send another file
-        </Button>
+      {/* ── CONNECTING INDICATOR ── */}
+      {sendState === "connecting" && (
+        <div className="rounded-2xl p-6 bg-bg-surface-muted text-center space-y-2">
+          <Loader2 className="mx-auto size-6 text-accent animate-spin" />
+          <p className="text-sm text-text-muted">Creating secure connection...</p>
+        </div>
       )}
 
-      {/* ── FAILED RETRY ── */}
-      {sendState === "failed" && (
-        <Button variant="primary" size="lg" className="w-full" onClick={resetSend}>
-          Try again
-        </Button>
+      {/* ── COMPLETED / FAILED ACTIONS ── */}
+      {isIdleOrDone && (
+        <div className="space-y-3">
+          {sendState === "completed" && (
+            <Button variant="primary" size="lg" className="w-full" onClick={resetSend}>
+              Send another file
+            </Button>
+          )}
+          {sendState === "failed" && (
+            <Button variant="primary" size="lg" className="w-full" onClick={resetSend}>
+              Try again
+            </Button>
+          )}
+          <Button variant="secondary" size="lg" className="w-full" onClick={copyDiagnostics}>
+            <Bug className="size-5" /> Copy diagnostics
+          </Button>
+        </div>
       )}
     </div>
   );

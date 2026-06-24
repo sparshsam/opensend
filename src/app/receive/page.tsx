@@ -1,51 +1,101 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDownToLine, KeyRound, Loader2, Check,
-  Smartphone, ArrowLeft, QrCode,
+  Smartphone, ArrowLeft, Bug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateEphemeralName } from "@/lib/ephemeral-names";
 import { PollSignaling } from "@/lib/webrtc/poll-signaling";
 import { WebRTCEngine, type TransferProgress, type TransferMetadata } from "@/lib/webrtc/webrtc-engine";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type ReceiveState =
   | "idle"
   | "looking-up"
   | "joining"
   | "connected"
-  | "receiving"
+  | "waiting-for-sender"
+  | "receiving-file"
   | "verifying"
   | "completed"
   | "failed";
 
-export default function ReceivePage() {
+const STATE_LABELS: Record<ReceiveState, string> = {
+  "idle": "Receive a file",
+  "looking-up": "Looking up session",
+  "joining": "Joining session",
+  "connected": "Connected to sender",
+  "waiting-for-sender": "Waiting for sender",
+  "receiving-file": "Receiving file",
+  "verifying": "Verifying file",
+  "completed": "Complete",
+  "failed": "Failed",
+};
+
+function ReceiveContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [enteredCode, setEnteredCode] = useState("");
   const [receiveState, setReceiveState] = useState<ReceiveState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState("");
   const [transferProgress, setTransferProgress] = useState<TransferProgress | null>(null);
   const [deviceName] = useState(generateEphemeralName);
+  const [fileName, setFileName] = useState<string | null>(null);
 
-  const pollRef = useCallback(() => new PollSignaling(), []);
-  const engineRef = useCallback(() => new WebRTCEngine(), []);
+  const pollRef = useRef<PollSignaling | null>(null);
+  const engineRef = useRef<WebRTCEngine | null>(null);
+  const cancelledRef = useRef(false);
+  const joinByCodeRef = useRef<typeof joinByCode>(null!);
+
+  // ── AUTO-JOIN FROM QR URL PARAMS ──
+  useEffect(() => {
+    const code = searchParams.get("code");
+    const sessionId = searchParams.get("session");
+    if (code && sessionId && joinByCodeRef.current) {
+      setEnteredCode(code.toUpperCase());
+      const timer = setTimeout(() => {
+        joinByCodeRef.current(code.toUpperCase(), sessionId);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const copyDiagnostics = async () => {
+    const text = [
+      "=== OpenSend Diagnostics ===",
+      `Code: ${enteredCode || "--"}`,
+      `Role: receiver`,
+      `State: ${receiveState}`,
+      `Last error: ${error ?? "none"}`,
+      "============================",
+    ].join("\n");
+    await navigator.clipboard.writeText(text);
+  };
 
   // ── JOIN BY CODE ──
-  const joinByCode = useCallback(async () => {
-    if (!enteredCode || enteredCode.length < 4) return;
+  const joinByCode = useCallback(async (code?: string, sessionIdOverride?: string) => {
+    cancelledRef.current = false;
+    const codeToUse = (code || enteredCode).toUpperCase();
+    if (!codeToUse || codeToUse.length < 4) return;
+
     setError(null);
     setReceiveState("looking-up");
     setConnectionState("Looking up session...");
 
     try {
-      // Look up the session by transfer code
-      const res = await fetch(`/api/guest/sessions?code=${enteredCode.toUpperCase()}`);
+      const lookupUrl = sessionIdOverride
+        ? `/api/guest/sessions?session_id=${sessionIdOverride}`
+        : `/api/guest/sessions?code=${codeToUse}`;
+
+      const res = await fetch(lookupUrl);
       if (!res.ok) {
-        const e = await res.json();
-        throw new Error(e.error || "Session not found");
+        const errBody = await res.json().catch(() => ({ error: "Session not found" }));
+        if (res.status === 404) throw new Error("Invalid code — session not found");
+        if (res.status === 410) throw new Error(errBody.error || "Session expired or already completed");
+        throw new Error(errBody.error || "Failed to look up session");
       }
       const data = await res.json();
 
@@ -54,7 +104,6 @@ export default function ReceivePage() {
 
       const receiverName = generateEphemeralName();
 
-      // Join with transfer_code (not secret) — server validates and allows pairing
       const joinRes = await fetch("/api/guest/sessions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -67,19 +116,26 @@ export default function ReceivePage() {
       });
       if (!joinRes.ok) {
         const e = await joinRes.json();
+        if (joinRes.status === 410 || joinRes.status === 404) {
+          throw new Error(e.error || "Session no longer available");
+        }
         throw new Error(e.error || "Failed to join session");
       }
 
-      setReceiveState("connected");
-      setConnectionState("Receiver joined! Connecting...");
+      if (cancelledRef.current) return;
 
-      // Start polling for WebRTC signals
+      setReceiveState("connected");
+      setConnectionState("Connected to sender");
+      setFileName(data.file_name || null);
+
       const poll = new PollSignaling();
+      pollRef.current = poll;
       const engine = new WebRTCEngine();
+      engineRef.current = engine;
 
       engine.onProgress((p) => setTransferProgress(p));
       engine.onStateChange((s) => {
-        if (s === "transferring") setReceiveState("receiving");
+        if (s === "transferring") setReceiveState("receiving-file");
         if (s === "verifying") setReceiveState("verifying");
         if (s === "completed") {
           setReceiveState("completed");
@@ -93,12 +149,13 @@ export default function ReceivePage() {
       });
       engine.onMetadata((m: TransferMetadata) => {
         setConnectionState(`Receiving: ${m.fileName}`);
+        setFileName(m.fileName);
       });
 
-      // Tell sender we joined (send a signal)
       poll.start(data.session_id, data.transfer_code, "receiver");
 
-      // Send receiver-joined signal
+      if (cancelledRef.current) return;
+
       await fetch("/api/guest/signal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -111,45 +168,69 @@ export default function ReceivePage() {
         }),
       });
 
-      // Poll for the WebRTC offer
+      setConnectionState("Waiting for sender");
+      setReceiveState("waiting-for-sender");
+
+      if (cancelledRef.current) return;
+
       let offerFound = false;
-      while (!offerFound) {
+      while (!offerFound && !cancelledRef.current) {
         const signals = await fetch(`/api/guest/signal?session_id=${data.session_id}`).then(r => r.json());
         for (const sig of signals || []) {
           if (sig.message_type === "offer" && sig.sender_type === "sender") {
             offerFound = true;
+            setConnectionState("Connected to sender");
             const dc = await engine.acceptConnection(
               data.session_id,
               sig.payload,
               (m) => poll.send(m),
             );
-            await new Promise<void>((resolve) => {
+            await new Promise<void>((resolve, reject) => {
               if (dc.readyState === "open") resolve();
-              else dc.onopen = () => resolve();
+              dc.onopen = () => resolve();
+              const timeout = setTimeout(() => reject(new Error("DataChannel timeout")), 30000);
+              dc.onopen = () => { clearTimeout(timeout); resolve(); };
             });
             break;
           }
         }
-        if (!offerFound) await new Promise(r => setTimeout(r, 500));
+        if (!offerFound && !cancelledRef.current) await new Promise(r => setTimeout(r, 500));
       }
 
     } catch (err: any) {
-      setReceiveState("failed");
-      setError(err.message || "Failed to join session");
+      if (!cancelledRef.current) {
+        setReceiveState("failed");
+        setError(err.message || "Failed to join session");
+      }
     }
   }, [enteredCode]);
+
+  // Store joinByCode in ref for URL auto-join
+  joinByCodeRef.current = joinByCode;
 
   const handleCodeChange = (value: string) => {
     setEnteredCode(value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
   };
 
   const reset = () => {
+    cancelledRef.current = true;
     setReceiveState("idle");
     setError(null);
     setConnectionState("");
     setTransferProgress(null);
     setEnteredCode("");
+    setFileName(null);
+    pollRef.current?.stop();
+    engineRef.current?.cleanup();
   };
+
+  useEffect(() => {
+    return () => {
+      cancelledRef.current = true;
+      pollRef.current?.stop();
+      engineRef.current?.cleanup();
+    };
+  }, []);
 
   // ── COMPLETED ──
   if (receiveState === "completed") {
@@ -158,8 +239,8 @@ export default function ReceivePage() {
         <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-accent/10">
           <Check className="size-10 text-accent" />
         </div>
-        <h1 className="text-display text-text-primary">Download complete!</h1>
-        <p className="text-sm text-text-muted">The file has been saved to your downloads.</p>
+        <h1 className="text-display text-text-primary">Complete</h1>
+        <p className="text-sm text-text-muted">{fileName ? `${fileName} downloaded` : "File saved to your downloads"}</p>
         <Button variant="primary" onClick={() => router.push("/")}>
           Back to home
         </Button>
@@ -184,10 +265,8 @@ export default function ReceivePage() {
         </p>
       </div>
 
-      {/* Idle state: show QR scan info + pair code entry */}
       {receiveState === "idle" && (
         <>
-          {/* QR info */}
           <div className="rounded-2xl p-6 bg-bg-surface-muted text-center space-y-3">
             <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-accent/10">
               <Smartphone className="size-6 text-accent" />
@@ -207,7 +286,6 @@ export default function ReceivePage() {
             </div>
           </div>
 
-          {/* Pair code entry */}
           <div className="text-center space-y-2">
             <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-accent/10">
               <KeyRound className="size-5 text-accent" />
@@ -225,29 +303,24 @@ export default function ReceivePage() {
           />
 
           <Button variant="primary" size="lg" className="w-full min-h-[56px] text-base"
-            disabled={enteredCode.length < 4} onClick={joinByCode}>
+            disabled={enteredCode.length < 4} onClick={() => joinByCode()}>
             <KeyRound className="size-5" /> Join
           </Button>
         </>
       )}
 
-      {/* Joining state */}
-      {(receiveState === "looking-up" || receiveState === "joining" || receiveState === "connected" || receiveState === "receiving" || receiveState === "verifying") && (
+      {(receiveState === "looking-up" || receiveState === "joining" || receiveState === "connected" ||
+        receiveState === "waiting-for-sender" || receiveState === "receiving-file" || receiveState === "verifying") && (
         <div className="rounded-2xl p-8 bg-bg-surface-muted space-y-4 text-center">
           <Loader2 className="mx-auto size-8 text-accent animate-spin" />
           <p className="text-lg font-bold text-text-primary">
-            {receiveState === "looking-up" && "Looking up session..."}
-            {receiveState === "joining" && "Joining session..."}
-            {receiveState === "connected" && "Connected! Waiting for file..."}
-            {receiveState === "receiving" && "Receiving..."}
-            {receiveState === "verifying" && "Verifying checksum..."}
+            {STATE_LABELS[receiveState]}
           </p>
           {connectionState && (
             <p className="text-sm text-text-muted">{connectionState}</p>
           )}
 
-          {/* Progress bar */}
-          {(receiveState === "receiving" || receiveState === "verifying") && transferProgress && (
+          {(receiveState === "receiving-file" || receiveState === "verifying") && transferProgress && (
             <div className="space-y-2">
               <div className="h-3 rounded-full bg-bg-base overflow-hidden">
                 <div
@@ -261,15 +334,17 @@ export default function ReceivePage() {
         </div>
       )}
 
-      {/* Failed state */}
       {receiveState === "failed" && (
         <div className="rounded-2xl p-8 bg-bg-surface-muted text-center space-y-4">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-error/10">
             <Loader2 className="size-6 text-error" />
           </div>
-          <p className="text-lg font-bold text-text-primary">Failed to join</p>
+          <p className="text-lg font-bold text-text-primary">Failed</p>
           {error && <p className="text-sm text-error">{error}</p>}
           <Button variant="primary" onClick={reset}>Try again</Button>
+          <Button variant="secondary" onClick={copyDiagnostics} className="w-full">
+            <Bug className="size-5" /> Copy diagnostics
+          </Button>
         </div>
       )}
 
@@ -277,5 +352,17 @@ export default function ReceivePage() {
         <p className="text-sm text-error text-center">{error}</p>
       )}
     </div>
+  );
+}
+
+export default function ReceivePage() {
+  return (
+    <Suspense fallback={
+      <div className="text-center py-20">
+        <Loader2 className="mx-auto size-8 text-accent animate-spin" />
+      </div>
+    }>
+      <ReceiveContent />
+    </Suspense>
   );
 }

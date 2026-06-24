@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.2.7 (2026-06-24)
+
+### Fixed
+- **QR now encodes a URL** instead of raw JSON — phone cameras open the receive page directly
+- **Transfer stall after receiver joins** — sender's signal handler now forwards answer/ICE signals to WebRTC engine after the initial offer is sent
+- **Mobile header overflow on iPhone** — desktop nav links hidden on mobile; bottom nav added with Transfer, History, Diagnostics, Profile
+- **iOS safe area** respected in header and bottom nav via `env(safe-area-inset-*)`
+- **useSearchParams Suspense boundary** — receive page properly wrapped for static generation
+
+### Added
+- **Receive page auto-join** — `/receive?code=CODE&session=SESSION_ID` auto-fills code, validates session, and starts join without manual entry
+- **Clear error messages** for invalid code, expired code, reused code in receive flow
+- **Copy diagnostics** button on sender and receiver failed states — copies session ID, code, role, state, ICE/DC state, last signal, last error to clipboard
+- **Diagnostics state tracking** on sender: ICE state, DataChannel state, signal type tracking
+
+### Changed
+- **Status text cleanup** — sender states: "Waiting for receiver", "Receiver joined", "Creating secure connection", "Sending file", "Verifying transfer", "Complete", "Failed"
+- **Status text cleanup** — receiver states: "Looking up session", "Joining session", "Connected to sender", "Waiting for sender", "Receiving file", "Verifying file", "Complete", "Failed"
+- **QR rules** — Direct Transfer QR opens receive page with params (auto-join); Cloud Transfer QR points to download URL
+- Updated docs and version bumped to 0.2.7
+
 ## v0.2.6 (2026-06-24)
 
 ### Fixed
