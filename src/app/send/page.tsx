@@ -219,6 +219,7 @@ export default function SendPage() {
                 setSendState("sending-file");
                 setConnectionState("");
                 setSignalingState("transferring");
+                setIceState("connected");
               }
               if (s === "verifying") {
                 setSendState("verifying");
@@ -227,6 +228,8 @@ export default function SendPage() {
               if (s === "completed") {
                 setSendState("completed");
                 setDcState("closed");
+                setSignalingState("completed");
+                setIceState("disconnected");
                 poll.updateSessionStatus("completed");
                 poll.stop();
               }
@@ -236,18 +239,6 @@ export default function SendPage() {
                 poll.stop();
               }
             });
-
-            // Monitor ICE and DC state
-            const pc = (engine as any).pc as RTCPeerConnection | null;
-            if (pc) {
-              pc.oniceconnectionstatechange = () => {
-                setIceState(pc.iceConnectionState);
-                if (pc.iceConnectionState === "connected") {
-                  setSendState("connecting");
-                  setConnectionState("");
-                }
-              };
-            }
 
             try {
               setSendState("connecting");

@@ -486,6 +486,18 @@ export class WebRTCEngine {
         this.setState("cancelled");
         this.cleanup();
         break;
+
+      case "checksum-ok":
+        // Sender receives receiver's checksum confirmation
+        this.setState("completed");
+        this._transferCompleted = true;
+        this._onComplete?.(true);
+        break;
+
+      case "checksum-fail":
+        this.setState("error");
+        this._onComplete?.(false);
+        break;
     }
   }
 
