@@ -1,5 +1,84 @@
 # Changelog
 
+## v0.2.5 (2026-06-24)
+
+### Added
+- Three transfer methods: Wi-Fi/Direct (primary), Bluetooth (foundation), Cloud (fallback)
+- Transfer method abstraction with capability detection (`src/lib/transfer-methods.ts`)
+- Guest flow wiring: PollSignaling + WebRTCEngine integrated into send/receive flow
+- Pair code UX: large display, countdown timer, copy/share buttons
+- QR display with session binding
+- Transfer method selector on homepage
+- AGENTS.md and CLAUDE.md with full project context
+- docs/transfer-methods.md
+
+### Changed
+- Homepage redesigned: Send/Receive/Enter Code + transfer method selector
+- Send flow: method selector → file picker → code display → wait → transfer
+- Receive flow: code entry → join → WebRTC accept → file download
+- SignalMessage type extended with receiver-joined, receiver-info
+- Build validates clean with all types
+
+## v0.2.4 (2026-06-24)
+
+### Added
+- HTTP polling signaling for guest transfers (no Supabase Realtime dependency)
+- `opensend_guest_signals` table for signal message storage
+- `PollSignaling` class — replaces Supabase Realtime for guest sessions
+- Post-signal API at /api/guest/signal
+- docs/guest-connectivity-audit.md — full audit of guest dependencies
+- docs/security-review-v0.2.4.md — comprehensive security audit
+
+### Fixed
+- Pair codes now use `crypto.getRandomValues()` instead of `Math.random()`
+- Guest session API supports lookup by session_id in addition to transfer_code
+
+## v0.2.3 (2026-06-23)
+
+### Added
+- Self-contained `opensend_guest_sessions` table (no user_id, no device_id)
+- Ephemeral device name generator ("Blue Falcon", "Quiet River", etc.)
+- Guest session API (/api/guest/sessions — create, lookup, update)
+- Pair code system: 6-character codes with 15-min expiry
+- QR pairing data model
+- Send/Receive/Pair Code homepage flow
+- docs/guest-mode.md and docs/pairing.md
+
+### Changed
+- Homepage: guest-first with no account required
+- Sign In moved to optional footer link
+
+## v0.2.2 (2026-06-23)
+
+### Added
+- Guest device system (localStorage-based, no account)
+- Local-first transfer history
+- Chunk acknowledgement + retry logic (3 attempts per chunk)
+- Diagnostics page (/diagnostics)
+- TURN support via env vars (NEXT_PUBLIC_TURN_URLS, etc.)
+- docs/turn-setup.md
+
+### Changed
+- Homepage: Send/Receive landing with guest-first messaging
+- WebRTC engine: getIceServers() reads TURN env vars
+
+## v0.2.1 (2026-06-23)
+
+### Added
+- WebRTC engine: RTCPeerConnection, DataChannel, ICE, chunked transfer
+- SHA-256 checksum verification for every transfer
+- Supabase Realtime signaling (SignalingService)
+- Device heartbeat via Realtime presence (30s interval)
+- Transfer session API (/api/sessions)
+- QR pairing API (/api/qr)
+- TransferProvider context for transfer management
+- TransferMonitor component (speed, %, ETA)
+- docs/webrtc-architecture.md
+
+### Changed
+- Homepage: file picker → device list → send flow
+- History: sent/received tabs with device info
+
 ## v0.2.0 (2026-06-23)
 
 ### Added

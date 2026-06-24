@@ -33,7 +33,7 @@ export interface TransferMetadata {
 }
 
 export type SignalMessage = {
-  type: "offer" | "answer" | "ice-candidate" | "transfer-request" | "transfer-accept" | "transfer-decline" | "transfer-cancel" | "transfer-metadata" | "transfer-chunk-ack" | "transfer-complete" | "checksum-verify" | "checksum-ok" | "checksum-fail";
+  type: "offer" | "answer" | "ice-candidate" | "transfer-request" | "transfer-accept" | "transfer-decline" | "transfer-cancel" | "transfer-metadata" | "transfer-chunk-ack" | "transfer-complete" | "checksum-verify" | "checksum-ok" | "checksum-fail" | "receiver-joined" | "receiver-info";
   payload: any;
   sessionId: string;
   senderDeviceId: string;
