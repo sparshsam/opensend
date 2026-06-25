@@ -5,6 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { authenticateToken, type Client } from "./supabase.js";
 import { registerTransferTools } from "./tools/transfers.js";
 import { registerDeviceTools } from "./tools/devices.js";
+import { registerGuestTools } from "./tools/guest-sessions.js";
 
 async function main() {
   const token = process.env.OPENSEND_ACCESS_TOKEN;
@@ -35,11 +36,13 @@ async function main() {
 
   const server = new McpServer({
     name: "opensend",
-    version: "0.1.1",
+    version: "0.3.1",
+    description: "OpenSend file transfer app — create guest sessions, manage cloud transfers, list devices, and check transfer status. Send files directly between devices with pair codes or cloud links.",
   });
 
   registerTransferTools(server, getClient, userId);
   registerDeviceTools(server, getClient, userId);
+  registerGuestTools(server, getClient, userId);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

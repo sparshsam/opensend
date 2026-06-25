@@ -3,6 +3,7 @@
 import { LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth-provider";
+import { McpTokensPanel } from "@/components/mcp-tokens-panel";
 
 export default function ProfilePage() {
   const { user, loading, signIn, signOut } = useAuth();
@@ -36,7 +37,10 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <Button variant="secondary" className="w-full" onClick={signOut}>
+            {/* MCP Access Tokens */}
+            <McpTokensPanel />
+
+            <Button variant="secondary" className="w-full mt-6" onClick={signOut}>
               <LogOut className="size-4" />
               Sign out
             </Button>
