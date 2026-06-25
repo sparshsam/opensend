@@ -72,6 +72,10 @@
   text-transform: uppercase;
 }
 
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* ── Base element styles ── */
 body {
   background-color: rgb(26, 4, 34);

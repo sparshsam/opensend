@@ -2,9 +2,9 @@
  * OpenSend v0.2.6 — Transfer Methods
  *
  * Three transfer methods:
- *   1. Direct Transfer — WebRTC P2P (primary, QR/code pairing)
+ *   1. Direct Transfer — peer-to-peer (primary, QR/code pairing)
  *   2. Bluetooth        — Web Bluetooth (disabled, coming later for native apps)
- *   3. Cloud Transfer   — Supabase Storage fallback (temporary upload/download)
+ *   3. Cloud Transfer   — temporary cloud upload/download
  *
  * Each method is a capability-checkable, selectable transfer path.
  * The default is Direct Transfer.
@@ -29,7 +29,7 @@ export const TRANSFER_METHODS: TransferMethodInfo[] = [
     id: "direct",
     label: "Direct Transfer",
     description: "Fastest method. Transfers directly between devices over your local network or the internet.",
-    helperText: "Best for nearby devices or normal browser-to-browser transfer.",
+    helperText: "Best for nearby devices or a direct connection.",
     icon: "Wifi",
     supported: typeof RTCPeerConnection !== "undefined",
     speed: "fast",

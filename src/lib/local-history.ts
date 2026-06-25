@@ -17,7 +17,7 @@ export interface LocalHistoryEntry {
   mimeType: string;
   peerDevice: string;
   status: "completed" | "cancelled" | "failed";
-  method: "direct" | "relay";
+  method: "direct" | "cloud";
   transferredAt: string;
   checksum?: string;
   // Batch fields (v0.2.9)

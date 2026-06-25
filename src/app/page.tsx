@@ -13,7 +13,7 @@ export default function HomePage() {
       <div className="text-center space-y-4">
         <h1 className="text-hero text-text-primary">OpenSend</h1>
         <p className="text-lg text-text-secondary max-w-md mx-auto">
-          Send files directly between devices. No account needed.
+          Send files directly between devices. No account, no sign-up — just a code to share.
         </p>
       </div>
 
@@ -43,6 +43,8 @@ export default function HomePage() {
       <div className="border-t border-b border-border-default py-4">
         <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-label text-text-muted">
           <span>No account needed</span>
+          <span className="text-text-muted/30 hidden sm:inline">&middot;</span>
+          <span>Encrypted</span>
           <span className="text-text-muted/30 hidden sm:inline">&middot;</span>
           <span>Free &amp; ad-free</span>
           <span className="text-text-muted/30 hidden sm:inline">&middot;</span>

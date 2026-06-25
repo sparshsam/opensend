@@ -14,9 +14,15 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OpenSend — File Transfer",
-  description: "Fast, simple, secure file sharing. Send files through a link or claim code.",
+  title: "OpenSend — Send files directly",
+  description: "Fast, simple, secure file sharing between devices. No account needed.",
   manifest: "/manifest.json",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -43,13 +49,13 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-bg-base antialiased">
+      <body className="min-h-screen bg-bg-base antialiased pb-safe">
         <AuthProvider>
           <ThemeProvider>
             <DeviceProvider>
               <TransferProvider>
                 <SiteHeader />
-                <main className="mx-auto max-w-2xl px-6 pt-20 sm:pt-28 pb-12">
+                <main className="mx-auto max-w-2xl px-4 sm:px-6 pt-24 sm:pt-28 pb-24">
                   {children}
                 </main>
                 <SiteFooter />
