@@ -7,12 +7,20 @@ export async function GET(request: Request) {
   const next = searchParams.get("next") ?? "/profile";
 
   if (code) {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+    try {
+      const supabase = await createClient();
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error) {
+        return NextResponse.redirect(`${origin}${next}`);
+      }
+      console.error("[AuthCallback] Code exchange failed:", error?.message);
+    } catch (err) {
+      console.error("[AuthCallback] Code exchange error:", err);
     }
   }
 
-  return NextResponse.redirect(`${origin}/?error=auth_failed`);
+  // If code exchange failed or there's no code, redirect to profile.
+  // The browser client's onAuthStateChange listener recovers the session
+  // from cookies or hash fragment tokens automatically.
+  return NextResponse.redirect(`${origin}${next}`);
 }
