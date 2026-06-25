@@ -239,6 +239,41 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        {/* MCP Setup Prompt Box */}
+        {newToken && (
+          <div className="space-y-3 border-2 border-accent/30 rounded-2xl p-5 bg-accent/5">
+            <h3 className="text-sm font-bold text-accent">Agent setup prompt</h3>
+            <p className="text-xs text-text-muted">
+              Copy this prompt and give it to your AI agent along with the token above.
+            </p>
+            <div className="relative">
+              <pre className="text-xs text-text-primary bg-bg-base rounded-2xl p-4 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed select-all">
+{`Connect to my OpenSend MCP server:  
+Endpoint: ${mcpEndpoint}  
+Token: ${newToken}
+
+Steps for the agent:
+1. Use the endpoint as your MCP server URL
+2. Authenticate with "Authorization: Bearer <token>" header
+3. Available tools: lookup_guest_session, lookup_transfer_by_code, list_my_transfers, describe_server
+4. You can also configure this as a standard MCP server in your agent config
+
+For Claude Code or Hermes Agent, add to config:
+{
+  "mcpServers": {
+    "opensend": {
+      "url": "${mcpEndpoint}",
+      "headers": {
+        "Authorization": "Bearer ${newToken}"
+      }
+    }
+  }
+}`}
+              </pre>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sign out */}

@@ -40,7 +40,7 @@ OpenSend — Free, ad-free, open-source file sharing. Direct device-to-device tr
 | v0.3.1 | **Reliability Hardening** — resumable batches, ICE restart, rate limiting, API validation, diagnostics export, test fixtures |
 | v0.3.2 | **MCP Server** — HTTP endpoint, 4 tools, token management API, profile panel, guest session tools (stdio) |
 | v0.3.3 | **Google Auth** — switch from GitHub to Google OAuth |
-| v0.3.4 | **Domain migration** — send.kovina.org, cleaned profile page, dynamic MCP endpoint |
+| v0.4.0 | **Production Transfer Engine** — adaptive chunk sizing, sliding-window speed, EWMA smoothing, exponential backoff retry, cancel button, P2P→Cloud fallback, receiver ICE restart, MCP setup prompt |
 
 ## Architecture
 

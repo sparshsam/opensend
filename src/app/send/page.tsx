@@ -902,11 +902,11 @@ export default function SendPage() {
             </div>
           )}
 
-          {/* Speed + ETA strip */}
+          {/* Speed + ETA strip (showing smoothed speed) */}
           {sendState === "sending-file" && (
             <div className="border-y border-border-default py-3 max-w-md mx-auto">
               <div className="flex justify-between text-xs text-text-muted">
-                <span>{formatSpeed(progress.speedBps)}</span>
+                <span>{formatSpeed(progress.speedAvgBps || progress.speedBps)}</span>
                 <span>{formatETA(progress.estimatedRemainingMs)} remaining</span>
               </div>
             </div>
@@ -926,6 +926,24 @@ export default function SendPage() {
               <Shield className="size-3.5" />
               End-to-end encrypted
             </div>
+          )}
+
+          {/* Cancel button during transfer */}
+          {sendState === "sending-file" && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                engineRef.current?.cancel();
+                pollRef.current?.sendCancel();
+                pollRef.current?.stop();
+                setSendState("failed");
+                setError("Transfer cancelled by you.");
+              }}
+            >
+              <X className="size-4" /> Cancel transfer
+            </Button>
           )}
         </div>
       )}
@@ -1006,7 +1024,7 @@ export default function SendPage() {
 
             {/* Footer */}
             <p className="text-center text-xs text-text-muted pt-2">
-              &mdash; OpenSend v0.3.1 &mdash;
+              &mdash; OpenSend v0.4.0 &mdash;
             </p>
           </div>
 
@@ -1058,15 +1076,35 @@ export default function SendPage() {
               </Button>
             )}
             {errorCategory === "disconnected" && (
-              <Button variant="primary" size="lg" className="w-full" onClick={retrySession}>
-                Try again
-              </Button>
+              <>
+                <Button variant="primary" size="lg" className="w-full" onClick={retrySession}>
+                  Try again
+                </Button>
+                {/* P2P→Cloud fallback */}
+                {selectedFiles.length > 0 && (
+                  <Button variant="secondary" size="lg" className="w-full" onClick={() => {
+                    setMethod("cloud");
+                    retrySession();
+                  }}>
+                    <Cloud className="size-5" /> Switch to Cloud Transfer
+                  </Button>
+                )}
+              </>
             )}
             {(!errorCategory || errorCategory === "failed" || errorCategory === "unsupported") && (
               <>
                 <Button variant="primary" size="lg" className="w-full" onClick={retrySession}>
                   Try again
                 </Button>
+                {/* P2P→Cloud fallback */}
+                {(errorCategory === "failed" || !errorCategory) && selectedFiles.length > 0 && (
+                  <Button variant="secondary" size="lg" className="w-full" onClick={() => {
+                    setMethod("cloud");
+                    retrySession();
+                  }}>
+                    <Cloud className="size-5" /> Switch to Cloud Transfer
+                  </Button>
+                )}
                 {errorCategory === "unsupported" && (
                   <p className="text-xs text-text-muted">Try using Chrome, Firefox, or Safari on a newer device.</p>
                 )}

@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.4.0 (2026-06-25) — Production Transfer Engine
+
+### Added
+- **Adaptive chunk sizing**: Chunk size dynamically adjusts based on connection quality (8KB poor, 16KB fair, 64KB good). Connection quality estimated from measured throughput.
+- **Sliding-window speed measurement**: Speed averaged over last 8 samples with EWMA smoothing (`alpha=0.3`). Clamped to prevent unrealistic jumps. `speedAvgBps` field on `TransferProgress`.
+- **Exponential backoff retry with jitter**: Chunk retries use `base*2^attempt + 0-30% jitter`. Max retries increased from 3 to 4.
+- **Exponential backoff ICE restart delays**: Disconnected check delay adapts from 5s base with backoff.
+- **Cancel button during active transfer**: Both send and receive pages show a cancel button during file transfer. Cancellation propagated via `cancel` and `cancel-ack` messages.
+- **P2P → Cloud automatic fallback**: When direct transfer fails, "Switch to Cloud Transfer" button appears on the failed state.
+- **Receiver-side ICE restart**: Receiver now also attempts ICE restart on connection failure.
+- **Session reconnection foundation**: `PollSignaling` supports `sendCancel()` for clean cancel propagation.
+- **MCP agent setup prompt**: Profile page shows a pre-built prompt box with token + endpoint that users can give to their AI agent.
+- **Structured diagnostic logging**: Engine logs include category prefixes (`[lifecycle]`, `[ice]`, `[batch]`, `[verify]`, `[error]`, `[cancel]`) for easier debugging.
+
+### Changed
+- **Better backpressure management**: Reduced threshold from 1MB to 512KB with separate 2MB high watermark for tighter flow control.
+- **Smarter retry strategy**: File retry increased from 1 to 2 attempts, with exponential backoff between retries.
+- **Adaptive per-file timeout**: File timeout scales with file size (`max(120s, size/10000)`) instead of fixed 120s.
+- **Progress smoothing**: Speed display uses `speedAvgBps` (smoothed) instead of raw `speedBps` — no more jumpy percentages.
+- **PollSignaling backoff**: Between-poll interval increases on failure (x1.5, capped at 5s) instead of fixed 500ms.
+- **Cancel signal detection**: PollSignaling detects incoming cancel signals and stops immediately.
+- **Better memory management**: Chunks are fully loaded at send time but cleared between files to free memory.
+- **Pacing preserved**: 100ms delay between files maintained for Safari stability.
+
+### Fixed
+- Chunk ack listener now uses persistent listener with `removeEventListener` cleanup — no more `{ once: true }` race conditions.
+- Cancelled transfer no longer overwritten by late state changes — `_cancelled` flag guards all transitions.
+- Message queue cleared on cancel to prevent processing messages after cancellation.
+- `sendJSON` wrapped in try/catch for silent failure instead of throwing on closed channel.
+
 ## v0.2.13 (2026-06-24) — Multi-File Reliability + iPhone Fixes
 
 ### Fixed

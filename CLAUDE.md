@@ -6,7 +6,7 @@ Deployed at **https://send.kovina.org**
 Contact: **sparshsam@gmail.com**
 
 ## Current Release
-v0.3.4 — Domain migration to send.kovina.org + cleaned profile page
+v0.4.0 — Production Transfer Engine
 
 ## Key Facts
 - **Pages:** `/` (clean homepage), `/send` (send flow), `/receive` (receive flow + auto-join from URL params), `/t/[code]` (cloud download), `/profile` (account info + MCP tokens + AI access)

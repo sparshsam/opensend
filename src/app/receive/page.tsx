@@ -537,7 +537,7 @@ function ReceiveContent() {
 
           {/* Footer */}
           <p className="text-center text-xs text-text-muted pt-2">
-            &mdash; OpenSend v0.3.1 &mdash;
+            &mdash; OpenSend v0.4.0 &mdash;
           </p>
         </div>
 
@@ -721,10 +721,10 @@ function ReceiveContent() {
           {/* Speed + ETA strip */}
           {receiveState === "receiving-file" && progress && (
             <div className="border-y border-border-default py-3 max-w-md mx-auto">
-              <div className="flex justify-between text-xs text-text-muted">
-                <span>{formatSpeed(progress.speedBps)}</span>
-                <span>{formatETA(progress.estimatedRemainingMs)} remaining</span>
-              </div>
+            <div className="flex justify-between text-xs text-text-muted">
+              <span>{formatSpeed(progress.speedAvgBps || progress.speedBps)}</span>
+              <span>{formatETA(progress.estimatedRemainingMs)} remaining</span>
+            </div>
             </div>
           )}
 
@@ -742,6 +742,18 @@ function ReceiveContent() {
               <Shield className="size-3.5" />
               End-to-end encrypted
             </div>
+          )}
+
+          {/* Cancel button during receive */}
+          {receiveState === "receiving-file" && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              onClick={reset}
+            >
+              <X className="size-4" /> Cancel transfer
+            </Button>
           )}
         </div>
       )}

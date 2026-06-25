@@ -165,6 +165,7 @@ export function buildProgress(overrides: Partial<TransferProgress> = {}): Transf
     totalBytes: 0,
     percent: 0,
     speedBps: 0,
+    speedAvgBps: 0,
     estimatedRemainingMs: null,
     chunkIndex: 0,
     totalChunks: 0,
