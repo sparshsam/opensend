@@ -1,0 +1,78 @@
+{
+  "name": "opensend-desktop",
+  "version": "0.7.0",
+  "description": "OpenSend — Send files directly between devices. No account needed.",
+  "author": "Sparsh Sam <sparshsam@gmail.com>",
+  "license": "AGPL-3.0",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win --x64",
+    "build:win:portable": "electron-builder --win portable --x64",
+    "build:win:msix": "electron-builder --win msix --x64"
+  },
+  "build": {
+    "appId": "org.kovina.opensend",
+    "productName": "OpenSend",
+    "copyright": "Copyright © 2026 Sparsh Sam",
+    "directories": {
+      "output": "../../dist/desktop"
+    },
+    "files": [
+      "electron/**/*",
+      "../../out/**/*",
+      "resources/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable",
+        "msix"
+      ],
+      "icon": "resources/icon.ico",
+      "artifactName": "OpenSend-${version}-${arch}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OpenSend",
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "installerHeaderIcon": "resources/icon.ico",
+      "license": "../../LICENSE"
+    },
+    "msix": {
+      "applicationId": "OpenSend",
+      "displayName": "OpenSend",
+      "publisherDisplayName": "Sparsh Sam",
+      "publisher": "CN=sparshsam"
+    },
+    "fileAssociations": [
+      {
+        "ext": "opensend",
+        "name": "OpenSend Transfer",
+        "description": "OpenSend transfer file",
+        "role": "Editor"
+      }
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "sparshsam",
+      "repo": "opensend"
+    }
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}

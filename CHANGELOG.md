@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.7.0 (2026-06-25) — Windows Application
+
+### Added
+- **Electron desktop wrapper**: Full Electron app at `apps/desktop/` with main process, preload bridge, and application menu.
+- **Main process** (`electron/main.js`): Window creation (1100x800, dark theme `#1a0422`), native file dialog via IPC (`dialog:openFiles`), file save dialog (`file:saveToDisk`), file explorer reveal (`file:showInFolder`), application menu with Send Files shortcut (Ctrl+O), About dialog with version info.
+- **Preload bridge** (`electron/preload.js`): `window.opensendDesktop` API with `openFileDialog()`, `getVersion()`, `saveToDisk()`, `showInFolder()`, `onOpenFilePicker()`.
+- **Windows icon** (`.ico`): Generated from `opensend-icon.svg` with 6 sizes (16×16 through 256×256) via `scripts/generate-win-icon.js`.
+- **electron-builder config**: NSIS installer (per-machine, customizable install dir, desktop + start menu shortcuts), portable EXE, MSIX package for Microsoft Store. GitHub release `publish` provider configured.
+- **File association**: `.opensend` extension registered during install.
+- **Auto-update**: `publish.github` provider configured for `electron-updater`.
+- **Build scripts**: `npm run desktop:install`, `desktop:start`, `desktop:build`, `desktop:icons` in root `package.json`.
+- **Desktop README**: Setup guide, architecture overview, build instructions.
+- **Splash/startup**: `backgroundColor: '#1a0422'` + `show: false` + `ready-to-show` pattern prevents white flash.
+
+### Changed
+- **Version**: 0.6.0 → 0.7.0
+
 ## v0.6.0 (2026-06-25) — Android Application
 
 ### Added

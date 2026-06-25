@@ -1,6 +1,6 @@
 {
   "name": "OpenSend",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,7 +13,12 @@
     "cap:open:android": "npx cap open android",
     "android:build": "CAPACITOR_BUILD=true next build && npx cap copy android && cd android && ./gradlew assembleDebug",
     "android:release": "CAPACITOR_BUILD=true next build && npx cap copy android && cd android && ./gradlew bundleRelease",
-    "android:icons": "node scripts/generate-android-icons.js"
+    "android:icons": "node scripts/generate-android-icons.js",
+    "desktop:install": "cd apps/desktop && npm install",
+    "desktop:icons": "node scripts/generate-win-icon.js",
+    "desktop:build": "npm run build && cd apps/desktop && npx electron-builder --win --x64",
+    "desktop:start": "cd apps/desktop && electron .",
+    "desktop:icons:all": "node scripts/generate-win-icon.js && node scripts/generate-store-assets.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",
