@@ -94,7 +94,7 @@ export default function ProfilePage() {
     setTimeout(() => setCopied(false), 3000);
   };
 
-  const mcpEndpoint = "https://opensendbysparsh.vercel.app/api/mcp";
+  const mcpEndpoint = (process.env.NEXT_PUBLIC_SITE_URL || "https://opensendbysparsh.vercel.app") + "/api/mcp";
 
   if (loading) {
     return (
