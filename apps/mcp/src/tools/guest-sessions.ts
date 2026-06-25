@@ -29,7 +29,7 @@ export function registerGuestTools(
       const transferCode = generatePairCode();
       const transferSecret = crypto.randomUUID();
 
-      const { data, error } = await getClient()
+      const { data, error } = await (getClient() as any)
         .from("opensend_guest_sessions")
         .insert({
           transfer_code: transferCode,
