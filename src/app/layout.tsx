@@ -7,6 +7,7 @@ import { AuthProvider } from "@/components/auth-provider";
 import { ThemeProvider } from "@/components/theme-toggle";
 import { DeviceProvider } from "@/components/device-provider";
 import { TransferProvider } from "@/components/transfer-provider";
+import { PwaScripts } from "@/components/pwa-scripts";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -15,14 +16,20 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "OpenSend — Send files directly",
-  description: "Fast, simple, secure file sharing between devices. No account needed.",
+  description: "Fast, simple, secure file sharing between devices. No account needed. Send files peer-to-peer without uploads.",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "OpenSend",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#bc3fde",
 };
 
 export default function RootLayout({
@@ -48,6 +55,10 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* iOS splash screens */}
+        <link rel="apple-touch-startup-image" href="/splash-2048x2732.svg" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash-1242x2688.svg" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" />
+        <link rel="apple-touch-icon" href="/icon-192x192.svg" />
       </head>
       <body className="min-h-screen bg-bg-base antialiased pb-safe">
         <AuthProvider>
@@ -59,6 +70,7 @@ export default function RootLayout({
                   {children}
                 </main>
                 <SiteFooter />
+                <PwaScripts />
               </TransferProvider>
             </DeviceProvider>
           </ThemeProvider>

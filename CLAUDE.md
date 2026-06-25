@@ -6,7 +6,7 @@ Deployed at **https://send.kovina.org**
 Contact: **sparshsam@gmail.com**
 
 ## Current Release
-v0.4.0 — Production Transfer Engine
+v0.5.0 — PWA Production
 
 ## Key Facts
 - **Pages:** `/` (clean homepage), `/send` (send flow), `/receive` (receive flow + auto-join from URL params), `/t/[code]` (cloud download), `/profile` (account info + MCP tokens + AI access)

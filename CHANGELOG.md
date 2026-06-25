@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.5.0 (2026-06-25) — PWA Production
+
+### Added
+- **Service worker**: Cache-first for static assets (CSS, JS, fonts), network-first for page navigations. Cache-busting via version-prefixed cache names (`opensend-static-v1`).
+- **Offline application shell**: Pages cached on install, served from cache when offline. API requests pass through (no offline API support needed since guest transfers require network).
+- **Install prompt**: `beforeinstallprompt` event captured, rendered as a floating prompt at the bottom of the screen. Detect `display-mode: standalone` to suppress when already installed.
+- **Update notification**: Detects waiting service worker on page load or via `updatefound` event. Shows "Update available" toast with one-click update that sends `SKIP_WAITING` + reloads.
+- **Cache versioning**: Cache names include version suffix. Old caches cleaned on `activate`. Static assets, fonts, and pages cached in separate stores.
+- **iOS PWA improvements**: `apple-touch-icon`, splash screen images with media queries, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style` via Next.js metadata.
+- **Manifest shortcuts**: "Send files" and "Receive files" shortcuts in the installed app context menu.
+- **Manifest icons**: Added maskable icon purpose for Android adaptive icons. Added 48x48 icon.
+
+### Changed
+- **Metadata**: `description` now mentions peer-to-peer without uploads. Apple Web App capability set.
+- **Viewport**: `themeColor` added to viewport export.
+- **Bundle size**: `next build` output shows stable sizes (~169kB first load, 103kB shared).
+
+### Fixed
+- Service worker registration happens on every page load via `PwaScripts` client component.
+
 ## v0.4.0 (2026-06-25) — Production Transfer Engine
 
 ### Added
