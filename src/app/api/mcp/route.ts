@@ -129,9 +129,7 @@ async function handleToolCall(name: string, args: unknown) {
             status: t.status,
             download_count: t.download_count,
             available: t.status === "available" && new Date(t.expires_at) > new Date(),
-            url: process.env.NEXT_PUBLIC_SITE_URL
-              ? `${process.env.NEXT_PUBLIC_SITE_URL}/t/${claimCode}`
-              : `https://opensendbysparsh.vercel.app/t/${claimCode}`,
+            url: `https://send.kovina.org/t/${claimCode}`,
           }, null, 2),
         }],
       };

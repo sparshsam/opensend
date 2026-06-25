@@ -14,14 +14,48 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
 });
 
+const baseUrl = process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}`
+  : "https://send.kovina.org";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(baseUrl),
   title: "OpenSend — Send files directly",
-  description: "Fast, simple, secure file sharing between devices. No account needed. Send files peer-to-peer without uploads.",
+  description: "Fast, simple, secure peer-to-peer file sharing. No account needed. Send files directly between devices. Open-source, free, ad-free.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     title: "OpenSend",
     statusBarStyle: "black-translucent",
+  },
+  openGraph: {
+    title: "OpenSend — Send files directly",
+    description: "Fast, simple, secure peer-to-peer file sharing. No account needed. Direct device-to-device transfers.",
+    url: "https://send.kovina.org",
+    siteName: "OpenSend",
+    images: [{ url: "/opengraph-image.png", width: 1200, height: 630 }],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "OpenSend — Send files directly",
+    description: "Fast, simple, secure peer-to-peer file sharing. No account needed.",
+    images: ["/opengraph-image.png"],
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/icon-152.png", sizes: "152x152", type: "image/png" },
+      { url: "/icon-167.png", sizes: "167x167", type: "image/png" },
+    ],
+    shortcut: { url: "/favicon.ico" },
   },
 };
 
@@ -56,9 +90,14 @@ export default function RootLayout({
           }}
         />
         {/* iOS splash screens */}
-        <link rel="apple-touch-startup-image" href="/splash-2048x2732.svg" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
-        <link rel="apple-touch-startup-image" href="/splash-1242x2688.svg" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" />
-        <link rel="apple-touch-icon" href="/icon-192x192.svg" />
+        <link rel="apple-touch-startup-image" href="/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash-1668x2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" />
+        <link rel="apple-touch-startup-image" href="/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />
+        <link rel="apple-touch-startup-image" href="/splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" />
       </head>
       <body className="min-h-screen bg-bg-base antialiased pb-safe">
         <AuthProvider>
