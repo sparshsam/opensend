@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  validateUUID,
+  validateMessageType,
+  validateString,
+} from "@/lib/api-validation";
 
 // POST /api/guest/signal — send a signaling message
 export async function POST(request: NextRequest) {
@@ -9,6 +14,24 @@ export async function POST(request: NextRequest) {
 
     if (!session_id || !secret || !sender_type || !message_type || !payload) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+    }
+
+    // ── Validate session_id ──
+    const uuidErr = validateUUID(session_id);
+    if (uuidErr) {
+      return NextResponse.json({ error: `Invalid session_id: ${uuidErr}` }, { status: 400 });
+    }
+
+    // ── Validate message_type ──
+    const msgErr = validateMessageType(message_type);
+    if (msgErr) {
+      return NextResponse.json({ error: `Invalid message_type: ${msgErr}` }, { status: 400 });
+    }
+
+    // ── Validate sender_type ──
+    const senderErr = validateString(sender_type, 1, 20);
+    if (senderErr) {
+      return NextResponse.json({ error: `Invalid sender_type: ${senderErr}` }, { status: 400 });
     }
 
     const admin = createAdminClient();
@@ -58,6 +81,12 @@ export async function GET(request: NextRequest) {
 
     if (!sessionId) {
       return NextResponse.json({ error: "Session ID required." }, { status: 400 });
+    }
+
+    // ── Validate session_id ──
+    const uuidErr = validateUUID(sessionId);
+    if (uuidErr) {
+      return NextResponse.json({ error: `Invalid session_id: ${uuidErr}` }, { status: 400 });
     }
 
     const admin = createAdminClient();

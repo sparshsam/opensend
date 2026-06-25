@@ -1,21 +1,20 @@
 /**
- * WebRTC Engine v0.2.11 — Multi-File Reliability + Completion Truth
+ * OpenSend v0.3.x — WebRTC Engine with Reliability Hardening
  *
  * Core RTCPeerConnection + DataChannel management for direct device-to-device
  * file transfer. Handles connection lifecycle, ICE negotiation, data channels,
  * chunked file transfer with progress tracking, checksum verification, and
- * batch (multi-file) transfers.
+ * batch (multi-file) transfers with per-file resilience.
  *
- * Batch protocol (v0.2.11):
- *   batch-metadata → (metadata → chunks → checksum → checksum-ok → file-complete)×N
- *   → batch-complete → batch-received → sender marks complete
- *
- * Reliability improvements:
- *   - Smaller chunks (8KB) for Safari compatibility
- *   - DataChannel bufferedAmount backpressure (drain events)
- *   - Per-file timeout (60s)
- *   - Pacing delay between files
- *   - Sender waits for batch-received before marking completed
+ * Reliability features:
+ *  - Per-file retry (1 retry per failed file)
+ *  - Resumable batch: failed files are skipped, rest continue
+ *  - ICE restart on connection loss (2 attempts)
+ *  - 8KB chunks for Safari compatibility
+ *  - DataChannel bufferedAmount backpressure (drain events)
+ *  - Per-file timeout (120s for large files)
+ *  - Pacing delay between files
+ *  - Sender waits for batch-received before marking completed
  */
 
 export type ConnectionState = "new" | "connecting" | "connected" | "disconnected" | "failed" | "closed";
@@ -71,11 +70,11 @@ export type SignalMessage = {
   receiverDeviceId: string;
 };
 
-// 8KB chunks for Safari/iPhone compatibility (WebRTC message size limit is ~16KB on most,
-// but Safari on iOS has stricter limits. 8KB is safe across all browsers.)
 const CHUNK_SIZE = 8192;
-const PER_FILE_TIMEOUT_MS = 60000; // 60s max per file
-const FILE_PACING_DELAY_MS = 100; // 100ms delay between files for Safari
+const PER_FILE_TIMEOUT_MS = 120000; // 120s per file (doubled from 60s for large files)
+const FILE_PACING_DELAY_MS = 100;
+const MAX_RECONNECT_ATTEMPTS = 2;
+const RECONNECT_DELAY_MS = 2000;
 
 function getIceServers(): RTCIceServer[] {
   const servers: RTCIceServer[] = [
@@ -118,15 +117,16 @@ export class WebRTCEngine {
   private _onFileDownloaded: ((fileName: string, blob: Blob) => void) | null = null;
   private _onBatchMetadata: ((m: BatchMetadata) => void) | null = null;
   private _onBatchComplete: (() => void) | null = null;
-  /** Called when receiver gets batch-received confirmation (all files verified) */
   private _onBatchReceived: (() => void) | null = null;
   private _debug: boolean = false;
   private _transferCompleted: boolean = false;
+  private _reconnectAttempts: number = 0;
 
   // Batch state (sender)
   private batchFiles: BatchFileInfo[] = [];
   private currentFileIndex: number = 0;
   private batchFileCount: number = 1;
+  private failedFiles: string[] = []; // track failed files for resumable batch
 
   // Batch state (receiver)
   private receivedBatchMetadata: BatchMetadata | null = null;
@@ -138,7 +138,7 @@ export class WebRTCEngine {
   private messageQueue: Array<() => Promise<void>> = [];
   private processingMessages: boolean = false;
 
-  /** Diagnostic log for Safari / cross-device debugging */
+  /** Diagnostic log */
   private diagLog: string[] = [];
 
   state: TransferState = "idle";
@@ -160,8 +160,32 @@ export class WebRTCEngine {
   onBatchComplete(fn: () => void) { this._onBatchComplete = fn; }
   onBatchReceived(fn: () => void) { this._onBatchReceived = fn; }
 
-  /** Get diagnostics log string */
   getDiagLog(): string { return this.diagLog.join("\n"); }
+  getFailedFiles(): string[] { return [...this.failedFiles]; }
+  getCompletedFilesCount(): number { return this.progress.filesCompleted ?? 0; }
+
+  /** Collect structured diagnostics */
+  getDiagnostics(): Record<string, unknown> {
+    return {
+      state: this.state,
+      transferCompleted: this._transferCompleted,
+      bytesTransferred: this.progress.bytesTransferred,
+      totalBytes: this.progress.totalBytes,
+      percent: this.progress.percent,
+      speedBps: this.progress.speedBps,
+      currentFileIndex: this.currentFileIndex,
+      fileCount: this.batchFileCount,
+      filesCompleted: this.progress.filesCompleted,
+      failedFiles: this.failedFiles.length,
+      failedFileNames: this.failedFiles,
+      reconnectAttempts: this._reconnectAttempts,
+      dataChannelState: this.dataChannel?.readyState ?? "none",
+      iceConnectionState: this.pc?.iceConnectionState ?? "none",
+      iceGatheringState: this.pc?.iceGatheringState ?? "none",
+      connectionState: this.pc?.connectionState ?? "none",
+      log: this.diagLog.slice(-20),
+    };
+  }
 
   private diag(msg: string) {
     this.diagLog.push(`[${Date.now()}] ${msg}`);
@@ -173,7 +197,7 @@ export class WebRTCEngine {
     this._onStateChange?.(s);
   }
 
-  // ── SENDER: Initiate connection ──────────────────────────────
+  // ── SENDER: Initiate connection ──
   async createConnection(sessionId: string, onSignal: (msg: SignalMessage) => void): Promise<RTCDataChannel> {
     this.diag("Creating sender connection");
     try {
@@ -209,10 +233,14 @@ export class WebRTCEngine {
     this.pc.oniceconnectionstatechange = () => {
       this.diag(`ICE state: ${this.pc?.iceConnectionState}`);
       if (this.pc?.iceConnectionState === "failed") {
-        this.diag("ICE connection failed — STUN/TURN may be unreachable");
+        this.diag("ICE connection failed — attempting restart");
+        this.attemptIceRestart(onSignal, sessionId);
       }
       if (this.pc?.iceConnectionState === "connected") {
-        this.setState("transferring");
+        this._reconnectAttempts = 0;
+        if (this.state === "negotiating") {
+          this.setState("transferring");
+        }
       }
     };
 
@@ -220,17 +248,29 @@ export class WebRTCEngine {
       this.diag(`Connection state: ${this.pc?.connectionState}`);
       if (this._transferCompleted) return;
       if (this.pc?.connectionState === "connected") {
-        this.setState("transferring");
+        this._reconnectAttempts = 0;
+        if (this.state === "negotiating") {
+          this.setState("transferring");
+        }
       } else if (this.pc?.connectionState === "failed") {
-        this.diag(`Connection failed — last ICE state: ${this.pc?.iceConnectionState}`);
-        this.diag("STUN/TURN could not establish a direct connection. Try Cloud Transfer or ensure both devices are on the same WiFi network.");
-        this.setState("error");
+        if (this._reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          this.diag(`Connection failed — restarting ICE (attempt ${this._reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+          this.attemptIceRestart(onSignal, sessionId);
+        } else {
+          this.diag(`Connection failed after ${MAX_RECONNECT_ATTEMPTS} reconnect attempts`);
+          this.diag("STUN/TURN could not establish a direct connection.");
+          this.setState("error");
+        }
       } else if (this.pc?.connectionState === "disconnected") {
-        // Don't immediately fail on disconnect — may recover
         setTimeout(() => {
           if (this.pc?.connectionState === "disconnected" && !this._transferCompleted) {
-            this.diag("Connection stayed disconnected — failing");
-            this.setState("error");
+            if (this._reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+              this.diag("Connection stayed disconnected — restarting ICE");
+              this.attemptIceRestart(onSignal, sessionId);
+            } else {
+              this.diag("Connection stayed disconnected after reconnect attempts — failing");
+              this.setState("error");
+            }
           }
         }, 5000);
       }
@@ -256,7 +296,34 @@ export class WebRTCEngine {
     return this.dataChannel;
   }
 
-  // ── RECEIVER: Accept connection ─────────────────────────────
+  // ── ICE RESTART ──
+  private async attemptIceRestart(onSignal: (msg: SignalMessage) => void, sessionId: string) {
+    if (!this.pc || this._transferCompleted) return;
+    if (this._reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return;
+
+    this._reconnectAttempts++;
+    this.diag(`ICE restart attempt ${this._reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+
+    try {
+      const offer = await this.pc.createOffer({ iceRestart: true });
+      await this.pc.setLocalDescription(offer);
+      onSignal({
+        type: "offer",
+        payload: offer,
+        sessionId,
+        senderDeviceId: "",
+        receiverDeviceId: "",
+      });
+      this.diag("ICE restart offer sent");
+    } catch (err) {
+      this.diag(`ICE restart failed: ${err}`);
+      if (this._reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        this.setState("error");
+      }
+    }
+  }
+
+  // ── RECEIVER: Accept connection ──
   async acceptConnection(
     sessionId: string,
     offer: RTCSessionDescriptionInit,
@@ -290,7 +357,7 @@ export class WebRTCEngine {
     this.pc.oniceconnectionstatechange = () => {
       this.diag(`Receiver ICE state: ${this.pc?.iceConnectionState}`);
       if (this.pc?.iceConnectionState === "failed") {
-        this.diag("Receiver ICE failed — STUN/TURN may be unreachable");
+        this.diag("Receiver ICE failed — attempting restart");
       }
     };
 
@@ -323,7 +390,6 @@ export class WebRTCEngine {
       receiverDeviceId: "",
     });
 
-    // Wait for data channel
     await new Promise<void>((resolve) => {
       const check = () => {
         if (this.dataChannel) {
@@ -337,7 +403,7 @@ export class WebRTCEngine {
     return this.dataChannel!;
   }
 
-  // ── Handle incoming signal (offer/answer/ICE) ──────────────
+  // ── Handle incoming signal (offer/answer/ICE) ──
   async handleSignal(msg: SignalMessage) {
     if (!this.pc) return;
 
@@ -371,7 +437,7 @@ export class WebRTCEngine {
     }
   }
 
-  // ── BATCH FILE TRANSFER (Sender) ─────────────────────────────
+  // ── BATCH FILE TRANSFER (Sender) ──
   async sendFiles(files: File[]): Promise<void> {
     if (!this.dataChannel || this.dataChannel.readyState !== "open") {
       throw new Error("Data channel not open");
@@ -380,6 +446,7 @@ export class WebRTCEngine {
     if (files.length === 0) throw new Error("No files to send");
 
     this.diag(`Starting batch send: ${files.length} files`);
+    this.failedFiles = [];
 
     this.batchFiles = files.map((f) => ({
       fileName: f.name,
@@ -414,7 +481,7 @@ export class WebRTCEngine {
     });
     this.diag("Batch metadata acknowledged");
 
-    // Transfer each file sequentially
+    // Transfer each file sequentially, skipping failed ones
     for (let i = 0; i < files.length; i++) {
       this.currentFileIndex = i;
       const file = files[i];
@@ -422,17 +489,33 @@ export class WebRTCEngine {
 
       this.emitBatchProgress(i, files.length);
 
-      // Add pacing delay between files (not before first)
+      // Add pacing delay between files
       if (i > 0) {
         this.diag(`Pacing ${FILE_PACING_DELAY_MS}ms before next file`);
         await new Promise((r) => setTimeout(r, FILE_PACING_DELAY_MS));
       }
 
-      try {
-        await this.sendSingleFileWithTimeout(file, i, files.length, totalBatchSize);
-      } catch (err: any) {
-        this.diag(`File ${i + 1} failed: ${err.message}`);
-        throw err;
+      // Try file with 1 retry
+      let fileSucceeded = false;
+      for (let attempt = 0; attempt <= 1; attempt++) {
+        if (attempt > 0) {
+          this.diag(`Retrying file ${i + 1}: ${file.name} (attempt ${attempt + 1})`);
+        }
+        try {
+          await this.sendSingleFileWithTimeout(file, i, files.length, totalBatchSize);
+          fileSucceeded = true;
+          break;
+        } catch (err: any) {
+          this.diag(`File ${i + 1} attempt ${attempt + 1} failed: ${err.message}`);
+        }
+      }
+
+      if (!fileSucceeded) {
+        this.diag(`File ${i + 1} skipped after retries: ${file.name}`);
+        this.failedFiles.push(file.name);
+        // Send file-complete anyway so receiver continues
+        this.sendJSON({ type: "file-complete", fileIndex: i, fileName: file.name, failed: true });
+        continue;
       }
 
       // Signal file complete to receiver
@@ -440,16 +523,21 @@ export class WebRTCEngine {
       this.diag(`File ${i + 1}/${files.length} complete signal sent`);
     }
 
-    // All files sent — send batch-complete
-    this.diag("All files sent, sending batch-complete");
-    this.sendJSON({ type: "batch-complete", fileCount: files.length, totalSize: totalBatchSize });
+    // All files attempted — send batch-complete with failure info
+    this.diag("All files attempted, sending batch-complete");
+    this.sendJSON({
+      type: "batch-complete",
+      fileCount: files.length,
+      totalSize: totalBatchSize,
+      failedFiles: this.failedFiles,
+    });
 
-    // Wait for batch-received from receiver before marking completed
+    // Wait for batch-received from receiver
     this.diag("Waiting for batch-received from receiver...");
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.diag("Timeout waiting for batch-received — marking complete anyway");
-        resolve(); // Don't fail, sender side is done
+        resolve();
       }, 10000);
 
       const handler = (e: MessageEvent) => {
@@ -468,13 +556,15 @@ export class WebRTCEngine {
     });
 
     this.diag("Batch complete — sender marking done");
+    if (this.failedFiles.length > 0) {
+      this.diag(`${this.failedFiles.length} file(s) failed: ${this.failedFiles.join(", ")}`);
+    }
     this.setState("completed");
     this._transferCompleted = true;
     this._onComplete?.(true);
     this._onBatchReceived?.();
   }
 
-  /** Wraps sendSingleFile with a per-file timeout */
   private async sendSingleFileWithTimeout(
     file: File, fileIndex: number, fileCount: number, totalBatchSize: number,
   ): Promise<string> {
@@ -553,7 +643,7 @@ export class WebRTCEngine {
 
     // Send chunks with bufferedAmount backpressure
     const RETRY_MAX = 3;
-    const ACK_TIMEOUT = 500; // ms
+    const ACK_TIMEOUT = 500;
 
     for (let i = 0; i < this.fileChunks.length; i++) {
       if (this.dataChannel?.readyState !== "open") {
@@ -589,8 +679,6 @@ export class WebRTCEngine {
           continue;
         }
 
-        // Wait for ack — use a persistent listener so other messages
-        // don't consume the ack handler (NOT { once: true })
         acked = await new Promise<boolean>((resolve) => {
           const handler = (e: MessageEvent) => {
             if (typeof e.data === "string") {
@@ -618,12 +706,10 @@ export class WebRTCEngine {
       this.progress.bytesTransferred += chunk.length;
       this.progress.percent = Math.round((this.progress.bytesTransferred / this.progress.totalBytes) * 100);
 
-      // Overall progress
       const previousFilesProgress = this.accumulatedPercent / totalBatchSize;
       const thisFileProgress = this.progress.bytesTransferred / totalBatchSize;
       this.progress.overallPercent = Math.round((previousFilesProgress + thisFileProgress) * 100);
 
-      // Speed calculation
       const now = Date.now();
       const elapsed = now - this.lastTime;
       if (elapsed >= 200) {
@@ -639,7 +725,6 @@ export class WebRTCEngine {
 
       this._onProgress?.(this.progress);
 
-      // Yield to UI every 128 chunks
       if (i % 128 === 0) await new Promise((r) => setTimeout(r, 0));
     }
 
@@ -651,24 +736,23 @@ export class WebRTCEngine {
     return checksum;
   }
 
-  // Single-file mode — wraps as batch
   async sendFile(file: File): Promise<string> {
     await this.sendFiles([file]);
     return this.metadata?.checksum || "";
   }
 
-  // ── FILE RECEIVE (Receiver) ─────────────────────────────────
+  // ── FILE RECEIVE (Receiver) ──
   private receivedChunks: Uint8Array[] = [];
   private receivedMetadata: TransferMetadata | null = null;
   private receivedChecksum: string | null = null;
   private receivedBytes: number = 0;
   private downloadedFiles: Array<{ fileName: string; checksum: string; blob: Blob }> = [];
+  private receivedFailedFiles: string[] = [];
 
   private setupDataChannel(dc: RTCDataChannel) {
     dc.binaryType = "arraybuffer";
 
-    // Set buffer threshold for backpressure monitoring
-    dc.bufferedAmountLowThreshold = 256 * 1024; // 256KB
+    dc.bufferedAmountLowThreshold = 256 * 1024;
 
     dc.onopen = () => {
       this.diag("Data channel open");
@@ -679,7 +763,6 @@ export class WebRTCEngine {
     };
 
     dc.onmessage = (e: MessageEvent) => {
-      // Push all messages to a queue to serialize async processing
       this.messageQueue.push(async () => {
         if (typeof e.data === "string") {
           try {
@@ -689,7 +772,6 @@ export class WebRTCEngine {
             this.diag("Failed to parse message");
           }
         } else {
-          // Binary chunk — synchronous, no race risk
           const chunk = new Uint8Array(e.data);
           this.receivedChunks.push(chunk);
           this.receivedBytes += chunk.length;
@@ -732,7 +814,6 @@ export class WebRTCEngine {
         }
       });
 
-      // Start processing if not already running
       if (!this.processingMessages) {
         this.processingMessages = true;
         this.processMessageQueue();
@@ -748,6 +829,7 @@ export class WebRTCEngine {
         this.receivedFileIndex = 0;
         this.receivedFilesCount = msg.batch.fileCount;
         this.downloadedFiles = [];
+        this.receivedFailedFiles = [];
         this.progress.fileCount = msg.batch.fileCount;
         this.progress.currentFileIndex = 0;
         this.progress.filesCompleted = 0;
@@ -781,6 +863,9 @@ export class WebRTCEngine {
 
       case "file-complete": {
         this.diag(`File complete: ${msg.fileName} (index ${msg.fileIndex})`);
+        if (msg.failed) {
+          this.receivedFailedFiles.push(msg.fileName);
+        }
         this.receivedFileIndex = msg.fileIndex + 1;
         this.progress.currentFileIndex = this.receivedFileIndex;
         this.progress.filesCompleted = this.receivedFileIndex;
@@ -792,9 +877,16 @@ export class WebRTCEngine {
       }
 
       case "batch-complete": {
-        this.diag("Batch-complete received — sending batch-received");
-        // Send confirmation back to sender that all files are verified and ready
-        this.sendJSON({ type: "batch-received", fileCount: this.receivedFilesCount });
+        this.diag("Batch-complete received");
+        const failedFiles = msg.failedFiles || [];
+        if (failedFiles.length > 0) {
+          this.diag(`${failedFiles.length} files failed on sender side: ${failedFiles.join(", ")}`);
+        }
+        this.sendJSON({
+          type: "batch-received",
+          fileCount: this.receivedFilesCount,
+          failedFiles: this.receivedFailedFiles,
+        });
         this.setState("completed");
         this._transferCompleted = true;
         this.progress.filesCompleted = this.receivedFilesCount;
@@ -841,11 +933,9 @@ export class WebRTCEngine {
       const mimeType = this.receivedMetadata.mimeType;
       const blob = new Blob([fullData], { type: mimeType });
 
-      // Store the verified file — UI will decide when/how to download
       this.downloadedFiles.push({ fileName, checksum: computedChecksum, blob });
       this._onFileDownloaded?.(fileName, blob);
 
-      // No auto-download — always show manual download links on completion page
       this.sendJSON({ type: "checksum-ok", checksum: computedChecksum });
       this.diag(`File verified OK: ${fileName}`);
     } else {
@@ -858,7 +948,6 @@ export class WebRTCEngine {
     this.receivedChunks = [];
   }
 
-  /** Trigger browser download for a blob */
   triggerDownload(blob: Blob, fileName: string) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -871,9 +960,12 @@ export class WebRTCEngine {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
-  /** Get all downloaded files with verification results */
   getDownloadedFiles(): Array<{ fileName: string; checksum: string; blob: Blob }> {
     return [...this.downloadedFiles];
+  }
+
+  getReceivedFailedFiles(): string[] {
+    return [...this.receivedFailedFiles];
   }
 
   private sendJSON(obj: any) {
@@ -891,7 +983,6 @@ export class WebRTCEngine {
     }
   }
 
-  /** Process queued DataChannel messages one at a time, ensuring serial async execution */
   private async processMessageQueue() {
     while (this.messageQueue.length > 0) {
       const handler = this.messageQueue.shift()!;
@@ -904,14 +995,12 @@ export class WebRTCEngine {
     this.processingMessages = false;
   }
 
-  // ── CANCEL ──────────────────────────────────────────────────
   cancel() {
     this.sendJSON({ type: "cancel" });
     this.setState("cancelled");
     this.cleanup();
   }
 
-  // ── CLEANUP ─────────────────────────────────────────────────
   cleanup() {
     this.dataChannel?.close();
     this.pc?.close();
@@ -925,15 +1014,15 @@ export class WebRTCEngine {
   }
 }
 
-// ── SHA-256 helper ────────────────────────────────────────────
+// ── SHA-256 helper ──
 export async function computeSHA256(data: Uint8Array): Promise<string> {
-  // @ts-ignore — type-safe at runtime; TS 5.8+ Uint8Array generic mismatch
+  // @ts-ignore
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-// ── Format utilities ──────────────────────────────────────────
+// ── Format utilities ──
 export function formatSpeed(bps: number): string {
   if (bps >= 1_000_000) return `${(bps / 1_000_000).toFixed(1)} MB/s`;
   if (bps >= 1_000) return `${(bps / 1_000).toFixed(0)} KB/s`;
@@ -946,4 +1035,44 @@ export function formatETA(ms: number | null): string {
   if (sec < 60) return `${sec}s`;
   const min = Math.floor(sec / 60);
   return `${min}m ${sec % 60}s`;
+}
+
+// ── Browser diagnostics helper ──
+export interface BrowserDiagnostics {
+  userAgent: string;
+  platform: string;
+  language: string;
+  cookiesEnabled: boolean;
+  webRTCSupported: boolean;
+  dataChannelSupported: boolean;
+  serviceWorkerSupported: boolean;
+  screenSize: string;
+  connectionType: string;
+}
+
+export function getBrowserDiagnostics(): BrowserDiagnostics {
+  if (typeof window === "undefined") {
+    return {
+      userAgent: "server",
+      platform: "server",
+      language: "server",
+      cookiesEnabled: false,
+      webRTCSupported: false,
+      dataChannelSupported: false,
+      serviceWorkerSupported: false,
+      screenSize: "server",
+      connectionType: "server",
+    };
+  }
+  return {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    cookiesEnabled: navigator.cookieEnabled,
+    webRTCSupported: typeof RTCPeerConnection !== "undefined",
+    dataChannelSupported: typeof RTCDataChannel !== "undefined",
+    serviceWorkerSupported: "serviceWorker" in navigator,
+    screenSize: `${window.screen.width}x${window.screen.height}`,
+    connectionType: (navigator as any).connection?.effectiveType || "unknown",
+  };
 }

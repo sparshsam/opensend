@@ -77,16 +77,29 @@ function ReceiveContent() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const copyDiagnostics = async () => {
-    const diagLog = engineRef.current?.getDiagLog() || "";
+    const engine = engineRef.current;
+    const engineDiag = engine?.getDiagnostics?.() || ({} as Record<string, unknown>);
+    const engineLog = engine?.getDiagLog() || "";
+    const browserDiag = (await import("@/lib/webrtc/webrtc-engine")).getBrowserDiagnostics();
     const text = [
       "=== OpenSend Diagnostics ===",
       `Code: ${enteredCode || "--"}`,
       `Role: receiver`,
       `State: ${receiveState}`,
       `Files received: ${receivedFiles.length}`,
+      `Failed files: ${((engineDiag as any).receivedFailedFiles || []).join(", ") || "none"}`,
+      `Reconnect attempts: ${engineDiag.reconnectAttempts ?? 0}`,
+      `ICE: ${engineDiag.iceConnectionState || "--"}`,
+      `DataChannel: ${engineDiag.dataChannelState || "--"}`,
       `Last error: ${error ?? "none"}`,
+      "--- Browser ---",
+      `UA: ${browserDiag.userAgent}`,
+      `Platform: ${browserDiag.platform}`,
+      `Screen: ${browserDiag.screenSize}`,
+      `Connection: ${browserDiag.connectionType}`,
+      `WebRTC: ${browserDiag.webRTCSupported}`,
       "--- Engine Log ---",
-      diagLog,
+      engineLog,
       "============================",
     ].join("\n");
     await navigator.clipboard.writeText(text);
@@ -524,7 +537,7 @@ function ReceiveContent() {
 
           {/* Footer */}
           <p className="text-center text-xs text-text-muted pt-2">
-            &mdash; OpenSend v0.2.13 &mdash;
+            &mdash; OpenSend v0.3.1 &mdash;
           </p>
         </div>
 

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateClaimCode } from "@/lib/utils";
 import { v4 as uuidv4 } from "uuid";
+import {
+  validateUUID,
+  validateString,
+  validateTransferCode,
+} from "@/lib/api-validation";
 
 const MAX_FILE_SIZE = 52428800; // 50 MB
 
@@ -18,6 +23,20 @@ export async function POST(request: NextRequest) {
 
     if (!sessionId || !transferSecret) {
       return NextResponse.json({ error: "Guest session required." }, { status: 401 });
+    }
+
+    // ── Validate session_id ──
+    const uuidErr = validateUUID(sessionId);
+    if (uuidErr) {
+      return NextResponse.json({ error: `Invalid session_id: ${uuidErr}` }, { status: 400 });
+    }
+
+    // ── Validate transfer_code if provided ──
+    if (transferCode) {
+      const codeErr = validateTransferCode(transferCode);
+      if (codeErr) {
+        return NextResponse.json({ error: `Invalid transfer_code: ${codeErr}` }, { status: 400 });
+      }
     }
 
     const admin = createAdminClient();
@@ -51,6 +70,37 @@ export async function POST(request: NextRequest) {
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json({ error: "File too large. Maximum: 50 MB." }, { status: 413 });
+    }
+
+    // ── Validate file name length ──
+    const fileNameErr = validateString(file.name, 1, 255);
+    if (fileNameErr) {
+      return NextResponse.json({ error: `Invalid file name: ${fileNameErr}` }, { status: 400 });
+    }
+
+    // ── Validate content-type (reject executable/binary-only types that shouldn't be uploaded) ──
+    const allowedMimePrefixes = [
+      "image/",
+      "video/",
+      "audio/",
+      "text/",
+      "application/pdf",
+      "application/zip",
+      "application/x-zip-compressed",
+      "application/x-tar",
+      "application/gzip",
+      "application/x-7z-compressed",
+      "application/x-rar-compressed",
+      "application/json",
+      "application/xml",
+      "application/octet-stream",
+    ];
+    const fileMime = file.type || "application/octet-stream";
+    const isAllowedMime = allowedMimePrefixes.some((prefix) =>
+      fileMime.startsWith(prefix),
+    );
+    if (file.type && !isAllowedMime) {
+      return NextResponse.json({ error: `Content type "${file.type}" is not allowed.` }, { status: 400 });
     }
 
     // Sanitize file name

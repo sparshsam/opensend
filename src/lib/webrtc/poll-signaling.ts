@@ -1,11 +1,14 @@
 /**
- * HTTP Polling Signaling v0.2.4
+ * OpenSend v0.3.x — HTTP Polling Signaling with Stale Session Cleanup
  *
  * Replaces Supabase Realtime for guest transfers.
  * Both parties poll a shared HTTP endpoint to exchange
  * WebRTC signaling messages (offers, answers, ICE candidates).
  *
- * No WebSocket, no Supabase SDK, no auth required.
+ * Reliability:
+ *  - Checks session expiry on each poll
+ *  - Auto-stops if session is expired/cancelled
+ *  - Handles consecutive poll failures gracefully
  */
 
 import type { SignalMessage } from "./webrtc-engine";
@@ -13,6 +16,7 @@ import type { SignalMessage } from "./webrtc-engine";
 export type PollSignalHandler = (msg: SignalMessage) => void;
 
 const POLL_INTERVAL = 500; // ms between polls
+const MAX_CONSECUTIVE_FAILURES = 10;
 
 export class PollSignaling {
   private sessionId: string = "";
@@ -22,10 +26,13 @@ export class PollSignaling {
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private _onSignal: PollSignalHandler | null = null;
   private _onStateChange: ((state: string) => void) | null = null;
+  private _onExpired: (() => void) | null = null;
   private _active: boolean = false;
+  private consecutiveFailures: number = 0;
 
   onSignal(fn: PollSignalHandler) { this._onSignal = fn; }
   onStateChange(fn: (s: string) => void) { this._onStateChange = fn; }
+  onExpired(fn: () => void) { this._onExpired = fn; }
 
   /** Start polling for a session */
   start(sessionId: string, secret: string, type: "sender" | "receiver") {
@@ -34,6 +41,7 @@ export class PollSignaling {
     this.secret = secret;
     this.senderType = type;
     this._active = true;
+    this.consecutiveFailures = 0;
     this.lastPollTime = new Date(0).toISOString();
     this._onStateChange?.("connecting");
     this.poll();
@@ -56,6 +64,15 @@ export class PollSignaling {
           payload: msg.payload,
         }),
       });
+
+      if (res.status === 410) {
+        // Session is expired/closed — notify and stop
+        console.warn("[PollSignaling] Session closed (410), stopping");
+        this._onExpired?.();
+        this.stop();
+        return;
+      }
+
       if (!res.ok) {
         console.warn("[PollSignaling] Send failed:", res.status, await res.text().catch(() => ""));
       }
@@ -69,15 +86,26 @@ export class PollSignaling {
     if (!this._active) return;
 
     try {
-      const params = new URLSearchParams({ session_id: this.sessionId, since: this.lastPollTime });
+      const params = new URLSearchParams({
+        session_id: this.sessionId,
+        since: this.lastPollTime,
+      });
       const res = await fetch(`/api/guest/signal?${params}`);
 
+      if (res.status === 410) {
+        // Session expired or cancelled
+        console.warn("[PollSignaling] Session expired (410), stopping");
+        this._onExpired?.();
+        this.stop();
+        return;
+      }
+
       if (res.ok) {
+        this.consecutiveFailures = 0;
         const signals = await res.json();
         if (signals && signals.length > 0) {
           for (const sig of signals) {
             this.lastPollTime = sig.created_at;
-            // Don't echo our own messages
             if (sig.sender_type !== this.senderType) {
               this._onSignal?.({
                 type: sig.message_type,
@@ -89,9 +117,22 @@ export class PollSignaling {
             }
           }
         }
+      } else {
+        this.consecutiveFailures++;
+        if (this.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          console.warn("[PollSignaling] Too many consecutive failures, stopping");
+          this._onStateChange?.("failed");
+          this.stop();
+          return;
+        }
       }
     } catch {
-      // Network error — will retry
+      this.consecutiveFailures++;
+      if (this.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+        console.warn("[PollSignaling] Network unreachable after max failures, stopping");
+        this._onStateChange?.("failed");
+        this.stop();
+      }
     }
 
     // Schedule next poll
@@ -124,6 +165,10 @@ export class PollSignaling {
     try {
       const res = await fetch(`/api/guest/sessions?code=${this.sessionId}&secret=${this.secret}`);
       if (res.ok) return await res.json();
+      if (res.status === 410) {
+        this._onExpired?.();
+        this.stop();
+      }
     } catch {}
     return null;
   }

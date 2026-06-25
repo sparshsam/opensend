@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generatePairCode } from "@/lib/ephemeral-names";
+import {
+  validateString,
+  validateNumeric,
+  sanitizeString,
+  validateUUID,
+  validateTransferCode,
+  validateStatus,
+  checkRateLimit,
+  extractClientIp,
+  ALLOWED_STATUSES,
+} from "@/lib/api-validation";
 
 const MAX_FILES = 20;
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -9,17 +20,57 @@ const MAX_TOTAL_SIZE = 500 * 1024 * 1024; // 500 MB
 // POST /api/guest/sessions — create a guest transfer session
 export async function POST(request: NextRequest) {
   try {
+    // ── Rate limiting ──
+    const clientIp = extractClientIp(request);
+    const rateCheck = checkRateLimit(clientIp);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `Too many requests. Try again in ${rateCheck.retryAfter} seconds.` },
+        { status: 429, headers: { "Retry-After": String(rateCheck.retryAfter) } },
+      );
+    }
+
     const body = await request.json();
     const { sender_name, file_name, file_size, mime_type, file_count, total_size } = body;
 
-    if (!sender_name || !file_name) {
-      return NextResponse.json({ error: "Sender name and file name required." }, { status: 400 });
+    // ── Sender name validation ──
+    const nameErr = validateString(sender_name, 3, 50, /^[a-zA-Z0-9 _-]+$/);
+    if (nameErr) {
+      return NextResponse.json({ error: `Invalid sender_name: ${nameErr}` }, { status: 400 });
+    }
+
+    // ── File name validation ──
+    const fileNameErr = validateString(file_name, 1, 255);
+    if (fileNameErr) {
+      return NextResponse.json({ error: `Invalid file_name: ${fileNameErr}` }, { status: 400 });
     }
 
     // ── Validation ──
     const count = file_count || 1;
     const size = file_size || 0;
     const total = total_size || size;
+
+    // Validate file_size and total_size as numbers within limits
+    if (file_size !== undefined) {
+      const sizeErr = validateNumeric(file_size, 0, MAX_FILE_SIZE);
+      if (sizeErr) {
+        return NextResponse.json({ error: `Invalid file_size: ${sizeErr}` }, { status: 400 });
+      }
+    }
+
+    if (total_size !== undefined) {
+      const totalErr = validateNumeric(total_size, 0, MAX_TOTAL_SIZE);
+      if (totalErr) {
+        return NextResponse.json({ error: `Invalid total_size: ${totalErr}` }, { status: 400 });
+      }
+    }
+
+    if (file_count !== undefined) {
+      const countErr = validateNumeric(file_count, 1, MAX_FILES);
+      if (countErr) {
+        return NextResponse.json({ error: `Invalid file_count: ${countErr}` }, { status: 400 });
+      }
+    }
 
     if (count > MAX_FILES) {
       return NextResponse.json({ error: `Too many files. Maximum: ${MAX_FILES} files per session.` }, { status: 400 });
@@ -33,6 +84,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Total transfer size exceeds 500 MB limit.` }, { status: 400 });
     }
 
+    // ── Sanitize string inputs ──
+    const sanitizedName = sanitizeString(sender_name, 50);
+    const sanitizedFileName = sanitizeString(file_name, 255);
+    const sanitizedMime = typeof mime_type === "string" ? mime_type.replace(/[^a-zA-Z0-9/+\-_.]/g, "").slice(0, 128) : "application/octet-stream";
+
     const admin = createAdminClient();
     const transferCode = generatePairCode();
     const transferSecret = crypto.randomUUID();
@@ -41,10 +97,10 @@ export async function POST(request: NextRequest) {
     const insertPayload: Record<string, unknown> = {
       transfer_code: transferCode,
       transfer_secret: transferSecret,
-      sender_ephemeral_id: sender_name,
-      file_name,
+      sender_ephemeral_id: sanitizedName,
+      file_name: sanitizedFileName,
       file_size: size,
-      mime_type: mime_type || "application/octet-stream",
+      mime_type: sanitizedMime,
       file_count: count,
       total_size: total,
       transfer_type: isBatch ? "batch" : "single",
@@ -98,6 +154,22 @@ export async function GET(request: NextRequest) {
 
     if (!code && !sessionId) {
       return NextResponse.json({ error: "Transfer code or session ID required." }, { status: 400 });
+    }
+
+    // ── Validate session_id if provided ──
+    if (sessionId) {
+      const uuidErr = validateUUID(sessionId);
+      if (uuidErr) {
+        return NextResponse.json({ error: `Invalid session_id: ${uuidErr}` }, { status: 400 });
+      }
+    }
+
+    // ── Validate transfer code if provided ──
+    if (code) {
+      const codeErr = validateTransferCode(code);
+      if (codeErr) {
+        return NextResponse.json({ error: `Invalid transfer code: ${codeErr}` }, { status: 400 });
+      }
     }
 
     const admin = createAdminClient();
@@ -163,6 +235,20 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Session ID and secret or transfer_code required." }, { status: 400 });
     }
 
+    // ── Validate session_id ──
+    const uuidErr = validateUUID(session_id);
+    if (uuidErr) {
+      return NextResponse.json({ error: `Invalid session_id: ${uuidErr}` }, { status: 400 });
+    }
+
+    // ── Validate transfer_code if provided ──
+    if (transfer_code) {
+      const codeErr = validateTransferCode(transfer_code);
+      if (codeErr) {
+        return NextResponse.json({ error: `Invalid transfer_code: ${codeErr}` }, { status: 400 });
+      }
+    }
+
     const admin = createAdminClient();
 
     // Verify the session exists
@@ -180,7 +266,13 @@ export async function PATCH(request: NextRequest) {
 
     if (secret === session.transfer_secret) {
       // Full access with transfer_secret — allow all fields
-      if (status) updates.status = status;
+      if (status) {
+        const statusErr = validateStatus(status);
+        if (statusErr) {
+          return NextResponse.json({ error: `Invalid status: ${statusErr}` }, { status: 400 });
+        }
+        updates.status = status;
+      }
       if (receiver_name) updates.receiver_ephemeral_id = receiver_name;
       if (file_name) updates.file_name = file_name;
       if (file_size !== undefined) updates.file_size = file_size;
@@ -188,8 +280,14 @@ export async function PATCH(request: NextRequest) {
       if (connection_type) updates.connection_type = connection_type;
     } else if (transfer_code && transfer_code === session.transfer_code) {
       // Receiver join — only allow pairing (no sender-level changes)
-      if (status && status !== "paired") {
-        return NextResponse.json({ error: "Cannot change status beyond pairing without session secret." }, { status: 403 });
+      if (status) {
+        const statusErr = validateStatus(status);
+        if (statusErr) {
+          return NextResponse.json({ error: `Invalid status: ${statusErr}` }, { status: 400 });
+        }
+        if (status !== "paired") {
+          return NextResponse.json({ error: "Cannot change status beyond pairing without session secret." }, { status: 403 });
+        }
       }
       if (file_name || file_size !== undefined || mime_type || connection_type) {
         return NextResponse.json({ error: "Cannot modify transfer metadata without session secret." }, { status: 403 });

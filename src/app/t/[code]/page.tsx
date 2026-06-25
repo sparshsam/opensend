@@ -157,7 +157,7 @@ export default function TransferPage() {
           </div>
         )}
         <p className="text-center text-xs text-text-muted pt-4">
-          &mdash; OpenSend v0.1.2 &mdash;
+          &mdash; OpenSend v0.3.1 &mdash;
         </p>
       </div>
 

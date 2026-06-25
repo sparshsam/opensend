@@ -188,22 +188,31 @@ export default function SendPage() {
   });
 
   const copyDiagnostics = async () => {
-    const diag = buildDiagnosticInfo();
+    const diag: any = engineRef.current?.getDiagnostics?.() || buildDiagnosticInfo();
     const engineLog = engineRef.current?.getDiagLog() || "";
+    const browserDiag = (await import("@/lib/webrtc/webrtc-engine")).getBrowserDiagnostics();
     const text = [
       "=== OpenSend Diagnostics ===",
       `Session: ${diag.sessionId ?? "--"}`,
       `Code: ${diag.code ?? "--"}`,
       `Role: ${diag.role}`,
-      `State: ${diag.sendState}`,
+      `State: ${diag.sendState || diag.state}`,
       `Completed: ${diag.transferCompleted}`,
-      `Bytes sent: ${diag.bytesSent} / ${diag.expectedBytes}`,
-      `Files: ${diag.filesCompleted} / ${diag.filesCount}`,
-      `Signaling: ${diag.signalingState}`,
-      `ICE: ${diag.iceState}`,
-      `DataChannel: ${diag.dcState}`,
-      `Last signal: ${diag.lastSignal}`,
-      `Last error: ${diag.lastError ?? "none"}`,
+      `Bytes: ${diag.bytesSent ?? diag.bytesTransferred ?? 0} / ${diag.expectedBytes ?? diag.totalBytes ?? 0}`,
+      `Files: ${diag.filesCompleted ?? 0} / ${diag.filesCount ?? diag.fileCount ?? 0}`,
+      `Failed files: ${(diag.failedFileNames || diag.failedFiles || []).join(", ") || "none"}`,
+      `Reconnect attempts: ${diag.reconnectAttempts ?? 0}`,
+      `Signaling: ${signalingState}`,
+      `ICE: ${iceState || diag.iceConnectionState || "--"}`,
+      `DataChannel: ${dcState || diag.dataChannelState || "--"}`,
+      `Last signal: ${lastSignalType}`,
+      `Last error: ${error ?? "none"}`,
+      "--- Browser ---",
+      `UA: ${browserDiag.userAgent}`,
+      `Platform: ${browserDiag.platform}`,
+      `Screen: ${browserDiag.screenSize}`,
+      `Connection: ${browserDiag.connectionType}`,
+      `WebRTC: ${browserDiag.webRTCSupported}`,
       "--- Engine Log ---",
       engineLog,
       "============================",
@@ -997,7 +1006,7 @@ export default function SendPage() {
 
             {/* Footer */}
             <p className="text-center text-xs text-text-muted pt-2">
-              &mdash; OpenSend v0.2.13 &mdash;
+              &mdash; OpenSend v0.3.1 &mdash;
             </p>
           </div>
 
