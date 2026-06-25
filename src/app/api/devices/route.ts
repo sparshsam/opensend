@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
 
     const admin = createAdminClient();
 
-    // Upsert: update if same fingerprint exists, insert otherwise
     const { data: existing } = await admin
       .from("opensend_devices")
       .select("id")
@@ -54,7 +53,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existing) {
-      // Update existing device
       const { data, error } = await admin
         .from("opensend_devices")
         .update({
@@ -77,7 +75,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(data);
     }
 
-    // New device: set as current, mark other devices as not current
     await admin.from("opensend_devices")
       .update({ is_current: false })
       .eq("user_id", user.id);
@@ -125,7 +122,6 @@ export async function PATCH(request: NextRequest) {
 
     const admin = createAdminClient();
 
-    // Ownership check
     const { data: existing, error: checkError } = await admin
       .from("opensend_devices")
       .select("id")
@@ -155,5 +151,45 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     console.error("Device update error:", error);
     return NextResponse.json({ error: "Failed to update device." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const deviceId = searchParams.get("id");
+
+    if (!deviceId) {
+      return NextResponse.json({ error: "Device ID required." }, { status: 400 });
+    }
+
+    const admin = createAdminClient();
+
+    const { data: existing } = await admin
+      .from("opensend_devices")
+      .select("id")
+      .eq("id", deviceId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!existing) {
+      return NextResponse.json({ error: "Device not found." }, { status: 404 });
+    }
+
+    const { error } = await admin.from("opensend_devices").delete().eq("id", deviceId);
+    if (error) {
+      return NextResponse.json({ error: "Failed to delete device." }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Device delete error:", error);
+    return NextResponse.json({ error: "Failed to delete device." }, { status: 500 });
   }
 }

@@ -40,6 +40,7 @@ OpenSend — Free, ad-free, open-source file sharing. Direct device-to-device tr
 | v0.3.1 | **Reliability Hardening** — resumable batches, ICE restart, rate limiting, API validation, diagnostics export, test fixtures |
 | v0.3.2 | **MCP Server** — HTTP endpoint, 4 tools, token management API, profile panel, guest session tools (stdio) |
 | v0.3.3 | **Google Auth** — switch from GitHub to Google OAuth |
+| v0.9.0 | **Trusted Devices** — device management UI, device avatars (+ initials), rename, revocation, sync toggle, transfer favorites, enhanced profile page, guest/account separation |
 | v0.8.0 | **Security & Privacy** — E2EE (AES-256-GCM via PBKDF2), security headers (CSP/HSTS/XFO), session/cloud cleanup cron, abuse protection, RLS audit, penetration checklist, security documentation |
 | v0.7.0 | **Windows Application** — Electron desktop wrapper, NSIS installer, portable build, MSIX package, file associations, auto-update via GitHub releases, Windows .ico icons, build automation |
 | v0.6.0 | **Android Application** — Capacitor integration, native packaging, Android permissions, adaptive icons, splash screens, build pipeline, Play Store assets |

@@ -6,10 +6,10 @@ Deployed at **https://send.kovina.org**
 Contact: **sparshsam@gmail.com**
 
 ## Current Release
-v0.8.0 — Security & Privacy
+v0.9.0 — Trusted Devices
 
 ## Key Facts
-- **Pages:** `/` (clean homepage), `/send` (send flow), `/receive` (receive flow + auto-join from URL params), `/t/[code]` (cloud download), `/profile` (account info + MCP tokens + AI access)
+- **Pages:** `/` (clean homepage), `/send` (send flow), `/receive` (receive flow + auto-join from URL params), `/t/[code]` (cloud download), `/profile` (account info + trusted devices + MCP tokens + sync)
 - **Android:** Capacitor 8, Android SDK 34+, adaptive icons (purple #bc3fde + white arrow), 8 splash densities, Google Play ready
 - **Desktop (Windows):** Electron wrapper, NSIS installer, portable build, MSIX package, .opensend file association, GitHub auto-update
 - **Security:** E2EE (optional AES-256-GCM), CSP + security headers, session/cloud cleanup cron, rate limiting (5/min per IP), SHA-256 checksums, security documentation
