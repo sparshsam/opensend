@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, User, KeyRound, Loader2, Plus, Trash2, Copy, Check, Terminal, ExternalLink } from "lucide-react";
+import { LogOut, User, KeyRound, Loader2, Plus, Trash2, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth-provider";
 import { useCallback, useEffect, useState } from "react";
@@ -25,21 +25,11 @@ export default function ProfilePage() {
   const [copied, setCopied] = useState(false);
   const [tokenName, setTokenName] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
-
-  // Display name (localStorage — no DB needed for guest-first)
-  const [displayName, setDisplayName] = useState("");
-  const [editingName, setEditingName] = useState(false);
+  const [mcpEndpoint, setMcpEndpoint] = useState("");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setDisplayName(localStorage.getItem("opensend_display_name") || "");
-    }
-  }, [user]);
-
-  const saveDisplayName = () => {
-    localStorage.setItem("opensend_display_name", displayName);
-    setEditingName(false);
-  };
+    setMcpEndpoint(window.location.origin + "/api/mcp");
+  }, []);
 
   const loadTokens = useCallback(async () => {
     if (!user) return;
@@ -94,8 +84,6 @@ export default function ProfilePage() {
     setTimeout(() => setCopied(false), 3000);
   };
 
-  const mcpEndpoint = (process.env.NEXT_PUBLIC_SITE_URL || "https://opensendbysparsh.vercel.app") + "/api/mcp";
-
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -129,7 +117,7 @@ export default function ProfilePage() {
         <h1 className="text-display text-text-primary">Profile</h1>
       </div>
 
-      {/* ── ACCOUNT INFO ── */}
+      {/* Account info */}
       <div className="border-t border-b border-border-default py-4 space-y-3">
         <div className="flex justify-between py-2 items-center">
           <span className="text-label text-text-muted">Email</span>
@@ -145,7 +133,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ── MCP ACCESS TOKENS ── */}
+      {/* MCP Access Tokens */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -210,7 +198,7 @@ export default function ProfilePage() {
                       ) : (
                         <>
                           {token.token_prefix}
-                          {token.last_used_at ? ` · Last used ${formatDate(token.last_used_at)}` : " · Never used"}
+                          {token.last_used_at ? " . Last used " + formatDate(token.last_used_at) : " . Never used"}
                         </>
                       )}
                     </p>
@@ -232,62 +220,28 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* ── AI ACCESS / MCP CONNECTION ── */}
+      {/* AI Access */}
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-text-primary">AI Access</h2>
         <p className="text-sm text-text-muted">
-          Generate a token above, then configure your AI agent to connect to OpenSend.
+          Generate a token above, then use it to connect any MCP-compatible agent to OpenSend.
         </p>
 
-        <div className="space-y-3 text-sm">
-          {/* Endpoint */}
-          <div className="border-y border-border-default py-3">
+        {mcpEndpoint && (
+          <div className="border-y border-border-default py-3 text-sm space-y-2">
             <div className="flex justify-between py-1.5">
               <span className="text-label text-text-muted">Endpoint</span>
               <code className="text-xs font-mono text-accent">{mcpEndpoint}</code>
             </div>
             <div className="flex justify-between py-1.5">
               <span className="text-label text-text-muted">Auth</span>
-              <code className="text-xs font-mono text-text-muted">Authorization: Bearer {"<token>"}</code>
+              <code className="text-xs font-mono text-text-muted">Authorization: Bearer &lt;token&gt;</code>
             </div>
           </div>
-
-          {/* Hermes config */}
-          <div className="rounded-2xl p-5 bg-bg-surface-muted space-y-2">
-            <div className="flex items-center gap-2">
-              <Terminal className="size-4 text-accent" />
-              <span className="text-sm font-semibold text-text-primary">Hermes Agent</span>
-            </div>
-            <pre className="text-xs font-mono text-text-muted whitespace-pre-wrap leading-relaxed">
-{`mcp_servers:
-  opensend:
-    url: ${mcpEndpoint}
-    headers:
-      Authorization: *** &lt;token&gt;"`}</pre>
-          </div>
-
-          {/* Claude Code config */}
-          <div className="rounded-2xl p-5 bg-bg-surface-muted space-y-2">
-            <div className="flex items-center gap-2">
-              <Terminal className="size-4 text-accent" />
-              <span className="text-sm font-semibold text-text-primary">Claude Code</span>
-            </div>
-            <pre className="text-xs font-mono text-text-muted whitespace-pre-wrap leading-relaxed">
-{`{
-  "mcpServers": {
-    "opensend": {
-      "url": "${mcpEndpoint}",
-      "headers": {
-        "Authorization": "Bearer &lt;token&gt;"
-      }
-    }
-  }
-}`}</pre>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* ── SIGN OUT ── */}
+      {/* Sign out */}
       <Button variant="secondary" className="w-full" onClick={signOut}>
         <LogOut className="size-4" /> Sign out
       </Button>
