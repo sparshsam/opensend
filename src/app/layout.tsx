@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-toggle";
 import { DeviceProvider } from "@/components/device-provider";
 import { TransferProvider } from "@/components/transfer-provider";
 import { PwaScripts } from "@/components/pwa-scripts";
+import { PageTransition } from "@/components/page-transition";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -89,6 +90,14 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* Font preload for faster startup */}
+        <link
+          rel="preload"
+          href="/fonts/NotoSansMath-Regular.ttf"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
         {/* iOS splash screens */}
         <link rel="apple-touch-startup-image" href="/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
         <link rel="apple-touch-startup-image" href="/splash-1668x2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" />
@@ -105,8 +114,10 @@ export default function RootLayout({
             <DeviceProvider>
               <TransferProvider>
                 <SiteHeader />
-                <main className="mx-auto max-w-2xl px-4 sm:px-6 pt-24 sm:pt-28 pb-24">
-                  {children}
+                <main id="main-content" className="mx-auto max-w-2xl px-4 sm:px-6 pt-24 sm:pt-28 pb-24">
+                  <PageTransition>
+                    {children}
+                  </PageTransition>
                 </main>
                 <SiteFooter />
                 <PwaScripts />

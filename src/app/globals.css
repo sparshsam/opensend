@@ -85,6 +85,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ·· Focus-visible for keyboard navigation ·· */
+*:focus-visible {
+  outline: 2px solid #bc3fde;
+  outline-offset: 2px;
+  border-radius: 9999px;
+}
+
+/* Remove focus outline for mouse users (keep default) */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* ============================================================
    LIGHT MODE OVERRIDES
    Tailwind v4 compiles color utilities to hardcoded values,
