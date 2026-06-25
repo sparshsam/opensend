@@ -15,6 +15,8 @@ OpenSend — Free, ad-free, open-source file sharing. Direct device-to-device tr
 - Google OAuth (via Supabase — only auth provider)
 - MCP SDK (@modelcontextprotocol/sdk) — AI agent integration
 - qrcode (QR code generation on canvas)
+- **Capacitor 8** — Android native packaging
+- **Electron** — Windows desktop wrapper
 
 ## Version History
 
@@ -54,7 +56,7 @@ OpenSend — Free, ad-free, open-source file sharing. Direct device-to-device tr
 - `/send` — Dedicated send flow: method + file selection → QR + code → progress → receipt
 - `/receive` — Dedicated receive flow: code entry → waiting → progress → download screen
 - `/t/[code]` — Download page for Cloud Transfer claim codes
-- `/profile` — Account info, MCP token management, AI Access config
+- `/profile` — Account info, trusted devices, MCP token management, AI Access & sync settings
 
 ### Transfer Methods
 1. **Direct Transfer** (primary) — WebRTC P2P via STUN/TURN. QR encodes receive page URL with params.
@@ -211,3 +213,20 @@ All OpenSend tables use `opensend_` prefix.
 15. **Receiver must register `poll.onSignal(msg => engine.handleSignal(msg))`** before `poll.start()`
 16. Google OAuth uses explicit `redirectTo` in `signInWithOAuth` options
 17. Auth callback at `/auth/callback` redirects to `/profile` on both success and failure (browser client recovers session from cookies)
+
+## Deployment Status
+
+**Latest commit:** `c6d58d9` (v0.9.0 — Trusted Devices) on `main`
+**Production (web):** Vercel free-tier 100 deploys/day limit was hit during this session. The latest code (v0.4.0 through v0.9.0) is on GitHub `main` but NOT on production. Run `npx vercel --prod --yes` or wait for midnight UTC auto-deploy.
+**Android:** Build-ready at `android/` — run `npm run android:build` (requires keystore for signed release).
+**Windows:** Build-ready at `apps/desktop/` — run `cd apps/desktop && npm install && npm run desktop:build` (requires code signing cert for SmartScreen).
+
+## Manual Tasks Pending
+
+See `MANUAL_REVIEW_PENDING.md` for the complete list. Key items:
+- Deploy to Vercel
+- Generate Android keystore + Windows code signing cert
+- Real-device testing on iOS, Android, Windows
+- Review Supabase RLS policies
+- Set CRON_SECRET env var
+- Run `npm audit`

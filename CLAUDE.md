@@ -1,69 +1,156 @@
-# OpenSend v0.3.4 — CLAUDE.md
+# OpenSend v0.9.0 — CLAUDE.md
 
 ## Project
 Repository at `/home/spars/repos/opensend/`.  
 Deployed at **https://send.kovina.org**  
-Contact: **sparshsam@gmail.com**
+Contact: **sparshsam@gmail.com**  
+GitHub: **https://github.com/sparshsam/opensend**
 
 ## Current Release
-v0.9.0 — Trusted Devices
+**v0.9.0 — Trusted Devices** (latest tag on `main`)
+⚠️ **Not yet deployed to production** — Vercel free-tier daily deploy limit (100/day) was hit during this session. Run `npx vercel --prod --yes` when limit resets (midnight UTC) or it auto-deploys from GitHub.
+
+## All Versions Built This Session
+
+| Version | Focus | Commit |
+|---------|-------|--------|
+| **v0.4.0** | Production Transfer Engine | `5c1d63b` |
+| **v0.5.0** | PWA Production | `00af551` |
+| **v0.6.0** | Android Application (Capacitor) | `a6ed3f9` |
+| **v0.7.0** | Windows Application (Electron) | `81ecd66` |
+| **v0.8.0** | Security & Privacy | `dc34e3b` |
+| **v0.9.0** | Trusted Devices | `c6d58d9` |
+
+All pushed to GitHub `main`. See `MANUAL_REVIEW_PENDING.md` for tasks requiring human action.
 
 ## Key Facts
-- **Pages:** `/` (clean homepage), `/send` (send flow), `/receive` (receive flow + auto-join from URL params), `/t/[code]` (cloud download), `/profile` (account info + trusted devices + MCP tokens + sync)
-- **Android:** Capacitor 8, Android SDK 34+, adaptive icons (purple #bc3fde + white arrow), 8 splash densities, Google Play ready
-- **Desktop (Windows):** Electron wrapper, NSIS installer, portable build, MSIX package, .opensend file association, GitHub auto-update
-- **Security:** E2EE (optional AES-256-GCM), CSP + security headers, session/cloud cleanup cron, rate limiting (5/min per IP), SHA-256 checksums, security documentation
-- **Two transfer methods:** Direct Transfer (WebRTC P2P), Cloud Transfer (temporary upload/download)
-- **Bluetooth:** disabled (`supported: false`), shows "Coming later for native apps."
-- **Guest transfers:** HTTP polling signaling (`PollSignaling`) — no Supabase dependency
-- **Multi-file transfer:** Up to 20 files, max 50 MB each, max 500 MB total per session
-- **Batch protocol:** `batch-metadata → (metadata → chunks → checksum → checksum-ok → file-complete)×N → batch-complete → batch-received`
-- **Resumable batch:** Failed files are skipped (1 retry per file), rest continue, failures reported in batch-complete
-- **Downloads:** Every file shown as `<a download>` link on completion page. Download All uses Web Share API (iOS) or sequential delayed anchor clicks (desktop). No auto-download.
-- **iPhone → desktop:** Receiver MUST register `poll.onSignal(msg => engine.handleSignal(msg))` — iOS uses trickle ICE (separate candidates), Android bundles them in SDP
-- **Chunk ack:** Persistent listener with `removeEventListener` cleanup (NOT `{ once: true }` — that caused slow transfers)
-- **ICE disconnect:** "disconnected" state waits 5s then attempts ICE restart (up to 2 reconnects) before failing
-- **ICE restart:** `createOffer({ iceRestart: true })` on connection loss, up to 2 attempts with 2s delay
-- **QR:** Encodes URL (`/receive?code=CODE&session=UUID`) — opens receive page with auto-join
-- **Mobile:** Bottom nav bar with icons; iOS safe area via `viewport-fit=cover` + `pb-safe` utility
-- **Diagnostics:** `getDiagnostics()` + `getBrowserDiagnostics()` — browser, platform, ICE state, failed files, reconnect attempts. Copy diagnostics on failed states.
-- **Brand:** `#bc3fde` purple accent, dark bg `#1a0422`, light bg `#faf0ff`
-- **Font:** Noto Sans Math (Regular 400 only)
-- **Auth:** Google OAuth only (via Supabase). No GitHub.
-- **Domain:** `send.kovina.org` (Cloudflare DNS → Vercel hosting)
-- **DB:** All tables prefixed `opensend_` on shared Supabase project `rbdyrymtgfqqkdemicdo.supabase.co`
-- **MCP:** 4 tools at `/api/mcp` (HTTP) + 14 tools at `apps/mcp/` (stdio)
-- **Service role key:** Set in Vercel env vars + local `.env.local`
 
-## MCP Server
+### Pages
+- `/` — Clean homepage with Send and Receive cards
+- `/send` — Send flow: method selection → file pick → QR + code → progress → receipt
+- `/receive` — Receive flow: code entry → waiting → progress → download screen
+- `/t/[code]` — Download page for Cloud Transfer claim codes
+- `/profile` — Account info, trusted devices, MCP tokens, sync settings, sign-out
+- `/history` — Transfer history with sent/received filters, favorites, delete
+- `/diagnostics` — Debug info for troubleshooting
+- `/privacy`, `/terms`, `/support` — Legal/help pages
 
-**HTTP endpoint:** `POST https://send.kovina.org/api/mcp` with `Authorization: Bearer *** *
+### PWA (v0.5.0)
+- Service worker at `/sw.js` — cache-first for assets, network-first for pages, versioned caches
+- Install prompt (beforeinstallprompt) with floating UI
+- Update notification (detects waiting SW, one-click update + reload)
+- Manifest with shortcuts (Send/Receive), maskable icons, orientation, categories
+- iOS PWA: apple-touch-icon, 8 splash sizes with media queries, viewport-fit=cover
+- OG image (1200x630), Twitter card, metadataBase
+
+### Icons & Assets (v0.5.0+)
+- Source: `public/opensend-icon.svg` — purple `#bc3fde` background + white upload arrow
+- Web: `favicon.ico`, `favicon.svg`, PNGs 16–512 at all sizes
+- iOS: 8 splash screens (`splash-640x1136` through `splash-2048x2732`)
+- Social: `opengraph-image.png` (1200x630)
+- Android: Adaptive icons (vector foreground + background), raster at 5 mipmap densities
+- Windows: `.ico` with 6 sizes (16–256)
+- Play Store: Feature graphic (1024x500), store icon (512x512)
+
+### Transfer Methods
+- **Direct Transfer** (primary) — WebRTC P2P via STUN/TURN, QR encodes receive page URL
+- **Bluetooth** (disabled) — Always `supported: false`, shows "Coming later for native apps."
+- **Cloud Transfer** (fallback) — Supabase Storage upload/download via `/api/guest/upload`
+
+### v0.4.0 Engine Improvements
+- **Adaptive chunk sizing**: 8KB (poor), 16KB (fair), 64KB (good) — based on measured throughput
+- **Sliding-window speed**: Last 8 samples, EWMA smoothing (alpha=0.3), `speedAvgBps` field
+- **Exponential backoff retry** with jitter for chunks (max 4 retries) and files (max 2 retries)
+- **Improved backpressure**: 512KB threshold + 2MB high watermark
+- **Cancel button** during active transfer (both send + receive)
+- **P2P→Cloud automatic fallback** on the failed state
+- **Receiver-side ICE restart** (previously sender-only)
+- **Adaptive per-file timeout**: scales with file size (`max(120s, size/10KB)`)
+- **PollSignaling backoff**: x1.5 on failure, capped at 5s
+- **Structured diag logging**: `[lifecycle]`, `[ice]`, `[batch]`, `[verify]`, `[cancel]`
+
+### Security (v0.8.0)
+- **E2EE module**: `src/lib/crypto/e2ee.ts` — optional AES-256-GCM via PBKDF2 (600K iterations)
+- **Security headers**: CSP, HSTS (2yr + preload), XFO (DENY), X-Content-Type-Options, Permissions-Policy, Referrer-Policy, COOP, CORP — all set in `src/middleware.ts`
+- **Session cleanup cron**: `/api/cron/cleanup` — expires stale sessions, cleans signals >1h, removes expired cloud transfers from storage
+- **Rate limiting**: 5 guest sessions/min per IP (returns 429 with Retry-After)
+- **Security docs**: `docs/security.md` — architecture, threat model, 22-item pen testing checklist
+
+### Auth & Devices (v0.9.0)
+- **Google OAuth** only (via Supabase). No GitHub.
+- **Trusted devices**: Device registration with fingerprint, rename, revocation (DELETE endpoint)
+- **Profile page**: Avatar circle, device list with initials avatars, sync toggle, MCP tokens, AI Access section
+- **Transfer favorites**: PATCH `/api/transfers/favorite` endpoint
+- **Sync toggle**: On/off switch for history sync
+
+### MCP Server
+- **HTTP endpoint**: `POST https://send.kovina.org/api/mcp` with `Authorization: Bearer <token>`
 - 4 tools: `lookup_guest_session`, `lookup_transfer_by_code`, `list_my_transfers`, `describe_server`
 - Token management: `GET/POST /api/mcp/tokens` (create/list), `DELETE /api/mcp/tokens/[id]` (revoke)
-- Profile page has inline token management + AI Access info
+- Profile page has inline token management + AI setup prompt box
+- **Stdio server** at `apps/mcp/` — 14 tools (transfers, devices, guest sessions)
 
-**Stdio server:** `apps/mcp/` — 14 tools total
-- **Transfers:** `list_my_transfers`, `get_transfer`, `delete_transfer`, `export_transfer_history`
-- **Devices:** `list_my_devices`, `get_device`, `rename_device`, `list_transfer_history`,
-  `list_transfer_sessions`, `get_transfer_session`, `list_online_devices`, `get_device_status`
-- **Guest sessions:** `create_guest_session`, `get_guest_session`, `get_transfer_by_claim_code`
+### Android (v0.6.0)
+- **Capacitor 8** with plugins: Share, Filesystem, App, SplashScreen, StatusBar, Keyboard, Preferences
+- **Config**: `capacitor.config.ts` with app ID `org.kovina.opensend`
+- **Android manifest**: INTERNET, CAMERA, POST_NOTIFICATIONS, network state, storage permissions, deep links (`opensend://`, `https://send.kovina.org` autoVerify)
+- **Adaptive icons**: Vector drawable (purple bg + white arrow), raster at 5 mipmap densities
+- **Build scripts**: `npm run android:build` (debug), `npm run android:release` (signed AAB)
+- **Next.js export**: `CAPACITOR_BUILD=true` triggers static export via `next.config.ts`
 
-## Important Tailwind v4 Quirks
-- `@theme inline {}` emits `:root { }` at the END of compiled CSS (overrides anything before it)
-- Custom `@layer base` rules are STRIPPED — put body styles outside all `@layer` blocks
-- Color utilities like `bg-bg-base` compile to **hardcoded RGB** at build time, not CSS variables
-- Light mode overrides must use `.light` class selector on `<html>` at the bottom of `globals.css`
+### Desktop / Windows (v0.7.0)
+- **Electron wrapper** at `apps/desktop/` — main process, preload bridge, app menu
+- **Window**: 1100×800, dark background `#1a0422`, show-on-ready (no flash)
+- **IPC handlers**: `dialog:openFiles`, `file:saveToDisk`, `file:showInFolder`, `app:getVersion`
+- **electron-builder**: NSIS installer (per-machine), portable EXE, MSIX package
+- **File association**: `.opensend` extension
+- **Auto-update**: GitHub releases publish provider
+- **Build scripts**: `npm run desktop:build`, `desktop:install`, `desktop:start`, `desktop:icons`
+
+### PWA Foundation (v0.3.x)
+- Two transfer methods: Direct (WebRTC P2P) and Cloud (Supabase Storage)
+- Multi-file batch: up to 20 files, 50 MB each, 500 MB total, resumable
+- Batch protocol with per-file checksums, retry, and failure reporting
+- HTTP polling signaling (no Supabase dependency for guests)
+- Message queue for serialized async data channel processing
+- ICE restart with reconnection (up to 2 attempts on both sides)
+- Categorized error states (expired, disconnected, not-found, too-large, unsupported)
+
+### Brand
+- Accent: `#bc3fde` purple
+- Dark bg: `#1a0422`, light bg: `#faf0ff`
+- Font: Noto Sans Math (Regular 400)
+- Domain: `send.kovina.org` (Cloudflare DNS → Vercel hosting)
 
 ## Build
+
 ```bash
-# Main project
-npm install && npm run typecheck && npm run lint && npm run build
+# Main project (web)
+npm install
+npm run typecheck
+npm run lint
+npm run build
+
+# Deploy web (when rate limit allows)
+npx vercel --prod --yes
 
 # MCP server
 cd apps/mcp && npm install && npm run typecheck && npm test
 
-# Deploy
-npx vercel --prod --yes
+# Android debug
+CAPACITOR_BUILD=true npm run build && npx cap copy android && cd android && ./gradlew assembleDebug
+
+# Android release (requires keystore.properties)
+npm run android:release
+
+# Desktop Windows (requires electron deps)
+cd apps/desktop && npm install
+npm run desktop:build
+
+# Generate icons
+npm run desktop:icons     # Windows .ico
+npm run android:icons     # Android mipmap PNGs
+npx cap sync              # Sync Android Capacitor assets
 ```
 
 ## Critical Rules
@@ -73,79 +160,14 @@ npx vercel --prod --yes
 4. MCP tools must maintain strict user isolation per query
 5. Do not claim real-world transfer success unless manually tested by Sparsh
 6. Do not claim E2EE unless fully implemented
-7. PATCH `/api/guest/sessions` accepts `transfer_code` for receiver join (limited to `receiver_name` + `status: "paired"`); full `transfer_secret` (UUID) required for all other updates
-8. `handleDataChannelMessage` must handle: `batch-metadata`, `metadata`, `checksum`, `checksum-ok`, `checksum-fail`, `file-complete`, `batch-complete`, `batch-received`, `cancel`
-9. `_transferCompleted` must be set before the connection state handler fires after a completed transfer
-10. **Receiver must register `poll.onSignal(msg => engine.handleSignal(msg))`** before `poll.start()`
-11. `/api/mcp` route handles JSON-RPC directly — no SDK transport dependency
-12. Google OAuth uses explicit `redirectTo: window.location.origin + "/auth/callback"` in `signInWithOAuth`
-13. Auth callback at `/auth/callback` exchanges code server-side, falls through to `/profile` on failure (browser client recovers session from cookies)
+7. WebRTC is already encrypted via DTLS at transport level; E2EE module is optional defense-in-depth
+8. All builds (web + Android + desktop) push to `main` — web deploys from GitHub auto-deploy
+9. Vercel free tier: 100 deploys/day limit. Plan upgrades or batch deploys accordingly
+10. See `MANUAL_REVIEW_PENDING.md` for all pending manual tasks
 
-## Guest Session Lifecycle
-```
-created → waiting → paired → transferring → completed (final)
-  |          |          |           |
-  expired   expired   cancelled    failed
-```
-Session auto-expires after 15 minutes. Pair codes: 6 chars, `crypto.getRandomValues()`.
-Rate limited: 5 sessions/min per IP.
-
-## Transfer Flow (Direct)
-```
-Sender:                        Receiver:
-  select files                  scan QR / enter code
-  create session                look up session
-  show QR + code                join with transfer_code
-  poll for receiver             send "receiver-joined" signal
-  create WebRTC offer           poll for offer
-  forward answer/ICE to engine  accept connection (answer)
-  send batch-metadata           register poll.onSignal → engine
-  (send chunks + ack)×N        receive + verify each file
-  send checksum                 send checksum-ok
-  send file-complete            advance file index
-  (retry failed file)×1        (skip failed file)
-  send batch-complete            send batch-received (ack all files)
-  → COMPLETED                   → show download links → COMPLETED
-```
-
-## State Machine
-**Sender:** `select-files → creating → waiting → receiver-joined → connecting → sending-file → verifying → sending-next → completed`
-- `failed` only if connection drops after max reconnect attempts (2)
-
-**Receiver:** `idle → looking-up → joining → connected → waiting-for-sender → receiving-file → verifying → completed`
-- `failed` only if connection drops or join fails
-- Invalid/expired codes stay on `idle` with inline error
-
-## WebRTC Engine Details
-- **Chunk size:** 8KB (Safari compatible)
-- **Backpressure:** Waits on `bufferedamountlow` when buffer > 1MB
-- **File timeout:** 120s per file (doubled from 60s for large files)
-- **File retry:** 1 retry per failed file before skipping in batch
-- **Pacing:** 100ms between files
-- **ICE restart:** `createOffer({ iceRestart: true })` on failure, up to 2 attempts
-- **Message queue:** Serialized async processing — prevents race conditions
-- **Diagnostics:** `getDiagnostics()` returns full state (ICE, DC, reconnect attempts, failed files)
-
-## API Validation & Rate Limiting
-- **Shared validator** at `src/lib/api-validation.ts` — `validateString`, `validateNumeric`, `sanitizeString`, `validateUUID`, `validateTransferCode`, `checkRateLimit`
-- **Rate limit:** 5 sessions/min/IP on `POST /api/guest/sessions`, returns `429 Retry-After`
-- **Message types validated** against allowed list on signal POST
-- **MIME types validated** against allowlist on guest upload
-
-## Test Fixtures
-Located at `tests/`:
-- `webrtc-fixtures.ts` — 6 scenario helpers (single file, multi-file, bad checksum, expired code, duplicate receiver join, cloud fallback)
-- `setup.ts` — Full mock DOM + MockRTCPeerConnection + MockRTCDataChannel polyfills
-- `README.md` — Setup guide and API reference
-
-## Manual Test Checklist
-1. Send 1 file → completion shows receipt with verified status
-2. Send 5 files (1 fails) → rest complete, failure reported
-3. Desktop → iPhone (same WiFi) → transfers and downloads
-4. iPhone → desktop (same WiFi) → transfers and downloads
-5. Android → desktop → transfers and downloads
-6. Invalid code → stays on entry, shows "Incorrect code"
-7. Expired code → stays on entry, shows "expired"
-8. Single file → download link appears (no auto-download)
-9. Sign in with Google → redirects to /profile
-10. Create MCP token → copy → use with agent
+## Manual Tasks Pending
+See `MANUAL_REVIEW_PENDING.md` in repo root for the full list. Key items:
+- Run `npx vercel --prod --yes` to deploy all versions
+- Generate Android keystore + Windows code signing cert
+- Test real transfers on iOS, Android, Windows
+- Review Supabase RLS policies
