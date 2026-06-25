@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.6.0 (2026-06-25) — Android Application
+
+### Added
+- **Capacitor 8 integration**: `@capacitor/core`, `@capacitor/android`, and plugins for Share, Filesystem, App, SplashScreen, StatusBar, Keyboard, Preferences.
+- **Capacitor config**: `capacitor.config.ts` with app ID `org.kovina.opensend`, dark status bar, splash screen settings.
+- **Android platform**: Full native Android project at `android/` with `npx cap add android`.
+- **Android permissions**: INTERNET, ACCESS_NETWORK_STATE, ACCESS_WIFI_STATE, CAMERA (QR scanning), POST_NOTIFICATIONS (Android 13+), READ_EXTERNAL_STORAGE (maxSdkVersion 32), WRITE_EXTERNAL_STORAGE (maxSdkVersion 28).
+- **Android intents**: Deep link support for `opensend://` scheme and `https://send.kovina.org` (autoVerify).
+- **Adaptive icons**: Vector drawable background (purple `#bc3fde`) and foreground (white arrow from `opensend-icon.svg`). Raster fallbacks at all 5 densities (mdpi–xxxhdpi). Adaptive icon XML for API 26+.
+- **Splash screens**: Capacitor SplashScreen plugin configured. 8 iOS splash sizes already generated in v0.5.0.
+- **Build pipeline**: `npm run android:build` (debug APK) and `npm run android:release` (signed AAB) scripts in package.json. Uses `CAPACITOR_BUILD=true` env var for static Next.js export.
+- **Next.js static export**: `next.config.ts` conditionally sets `output: "export"` when `CAPACITOR_BUILD` is true, with unoptimized images.
+- **Git ignore**: Android build outputs, Gradle caches, keystores, and local properties ignored.
+- **Play Store assets**: Feature graphic (1024x500, dark bg with icon) and store icon (512x512) generated.
+- **API fetch wrapper**: `lib/api-fetch.ts` with `apiFetch()` that resolves to production URL (`send.kovina.org`) when running in Capacitor's `file://` context.
+
+### Changed
+- **Version**: 0.5.0 → 0.6.0
+- **Build config**: Next.js config supports both web (server) and Capacitor (static export) builds.
+
 ## v0.5.0 (2026-06-25) — PWA Production
 
 ### Added

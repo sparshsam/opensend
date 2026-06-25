@@ -1,15 +1,31 @@
 {
   "name": "OpenSend",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cap:sync": "npx cap sync",
+    "cap:copy": "npx cap copy",
+    "cap:open:android": "npx cap open android",
+    "android:build": "CAPACITOR_BUILD=true next build && npx cap copy android && cd android && ./gradlew assembleDebug",
+    "android:release": "CAPACITOR_BUILD=true next build && npx cap copy android && cd android && ./gradlew bundleRelease",
+    "android:icons": "node scripts/generate-android-icons.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/keyboard": "^8.0.5",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@supabase/ssr": "^0.6.0",
     "@supabase/supabase-js": "^2.107.0",

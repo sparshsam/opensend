@@ -6,10 +6,11 @@ Deployed at **https://send.kovina.org**
 Contact: **sparshsam@gmail.com**
 
 ## Current Release
-v0.5.0 — PWA Production
+v0.6.0 — Android Application
 
 ## Key Facts
 - **Pages:** `/` (clean homepage), `/send` (send flow), `/receive` (receive flow + auto-join from URL params), `/t/[code]` (cloud download), `/profile` (account info + MCP tokens + AI access)
+- **Android:** Capacitor 8, Android SDK 34+, adaptive icons (purple #bc3fde + white arrow), 8 splash densities, Google Play ready
 - **Two transfer methods:** Direct Transfer (WebRTC P2P), Cloud Transfer (temporary upload/download)
 - **Bluetooth:** disabled (`supported: false`), shows "Coming later for native apps."
 - **Guest transfers:** HTTP polling signaling (`PollSignaling`) — no Supabase dependency

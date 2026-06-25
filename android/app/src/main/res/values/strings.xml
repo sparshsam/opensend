@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OpenSend</string>
+    <string name="title_activity_main">OpenSend</string>
+    <string name="package_name">org.kovina.opensend</string>
+    <string name="custom_url_scheme">org.kovina.opensend</string>
+</resources>

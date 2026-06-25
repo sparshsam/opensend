@@ -44,3 +44,15 @@ supabase/.temp
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Capacitor / Android
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/keystore.properties
+android/app/keystores/
+*.jks
+*.keystore
+google-services.json
+*.hprof
