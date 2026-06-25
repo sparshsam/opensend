@@ -54,7 +54,7 @@ export default function ProfilePage() {
               Sign in to view your transfer history and manage your files.
             </p>
             <Button variant="primary" size="lg" onClick={signIn}>
-              Sign in with GitHub
+              Sign in with Google
             </Button>
           </div>
         )}

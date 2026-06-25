@@ -107,7 +107,7 @@ export default function HistoryPage() {
           Sign in to view your sent and received transfers.
         </p>
         <Button variant="primary" size="lg" onClick={signIn}>
-          Sign in with GitHub
+          Sign in with Google
         </Button>
       </div>
     );

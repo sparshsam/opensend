@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async () => {
-    await supabase.auth.signInWithOAuth({ provider: "github" });
+    await supabase.auth.signInWithOAuth({ provider: "google" });
   };
 
   const signOut = async () => {
