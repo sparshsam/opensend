@@ -1,9 +1,9 @@
 "use client";
 
-import { LogOut, User, KeyRound, Loader2, Plus, Trash2, Copy, Check, Smartphone, Monitor, Edit3, RefreshCw, Star, Shield } from "lucide-react";
+import { LogOut, User, KeyRound, Loader2, Plus, Trash2, Copy, Check, Smartphone, Monitor, Edit3, Star, Shield, Globe, Terminal, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth-provider";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDate } from "@/lib/utils";
 
 interface McpToken {
@@ -44,6 +44,7 @@ export default function ProfilePage() {
   const [revoking, setRevoking] = useState<string | null>(null);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedConfig, setCopiedConfig] = useState(false);
   const [tokenName, setTokenName] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [mcpEndpoint, setMcpEndpoint] = useState("");
@@ -55,10 +56,23 @@ export default function ProfilePage() {
   const [deletingDevice, setDeletingDevice] = useState<string | null>(null);
   // Sync toggle
   const [syncEnabled, setSyncEnabled] = useState(true);
+  // Connection guide
+  const [activeTokensExpanded, setActiveTokensExpanded] = useState(true);
+  const [guideExpanded, setGuideExpanded] = useState(true);
+  const guideRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMcpEndpoint(window.location.origin + "/api/mcp");
   }, []);
+
+  // Auto-scroll to connection guide after token creation
+  useEffect(() => {
+    if (newToken && guideRef.current) {
+      setTimeout(() => {
+        guideRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    }
+  }, [newToken]);
 
   // Load devices
   const loadDevices = useCallback(async () => {
@@ -129,6 +143,12 @@ export default function ProfilePage() {
     setTimeout(() => setCopied(false), 3000);
   };
 
+  const copyConfig = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedConfig(true);
+    setTimeout(() => setCopiedConfig(false), 3000);
+  };
+
   const renameDevice = async (deviceId: string) => {
     if (!renameValue.trim()) return;
     try {
@@ -151,6 +171,20 @@ export default function ProfilePage() {
       setDeletingDevice(null);
     }
   };
+
+  const activeTokens = tokens.filter(t => !t.revoked_at);
+  const displayToken = newToken || (activeTokens.length > 0 ? activeTokens[activeTokens.length - 1].token_prefix + "***" : null);
+
+  const configJson = displayToken && mcpEndpoint ? JSON.stringify({
+    mcpServers: {
+      opensend: {
+        url: mcpEndpoint,
+        headers: {
+          Authorization: `Bearer ${displayToken}`
+        }
+      }
+    }
+  }, null, 2) : null;
 
   if (loading) {
     return (
@@ -191,6 +225,7 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-10">
+      {/* Profile header */}
       <div className="text-center">
         <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-accent/10 mb-4">
           <User className="size-8 text-accent" />
@@ -320,7 +355,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* MCP Access Tokens (collapsed under AI Access) */}
+      {/* AI Access — MCP Tokens */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -350,9 +385,12 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {/* New token banner */}
         {newToken && (
           <div className="rounded-2xl p-5 border-2 border-accent/30 bg-accent/5 space-y-3">
-            <p className="text-sm font-bold text-accent">Token created — save it now</p>
+            <p className="text-sm font-bold text-accent flex items-center gap-2">
+              <KeyRound className="size-4" /> Token created — save it now
+            </p>
             <p className="text-xs text-text-muted">This is the only time you will see this token.</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 text-xs font-mono bg-bg-base rounded-full px-4 py-2.5 text-text-primary break-all select-all">
@@ -365,40 +403,124 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {/* Token list */}
         {tokensLoading ? (
           <div className="text-center py-6">
             <Loader2 className="mx-auto size-5 text-accent animate-spin" />
           </div>
         ) : tokens.length > 0 && (
-          <div className="space-y-2">
-            {tokens.map((token) => (
-              <div key={token.id} className="flex items-center justify-between gap-3 rounded-full px-5 py-3 bg-bg-surface-muted/30">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <KeyRound className="size-4 text-text-muted shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-text-primary truncate">{token.name}</p>
-                    <p className="text-xs text-text-muted">
-                      {token.revoked_at ? (
-                        <span className="text-error">Revoked {formatDate(token.revoked_at)}</span>
-                      ) : (
-                        <>{token.token_prefix}{token.last_used_at ? " · Last used " + formatDate(token.last_used_at) : " · Never used"}</>
-                      )}
-                    </p>
+          <>
+            <button
+              onClick={() => setActiveTokensExpanded(!activeTokensExpanded)}
+              className="flex items-center gap-2 text-sm font-semibold text-text-muted hover:text-text-primary transition cursor-pointer w-full text-left"
+            >
+              {activeTokensExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+              {activeTokens.length} active token{activeTokens.length !== 1 ? "s" : ""}
+            </button>
+            {activeTokensExpanded && (
+              <div className="space-y-2">
+                {tokens.map((token) => (
+                  <div key={token.id} className="flex items-center justify-between gap-3 rounded-full px-5 py-3 bg-bg-surface-muted/30">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <KeyRound className="size-4 text-text-muted shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-text-primary truncate">{token.name}</p>
+                        <p className="text-xs text-text-muted">
+                          {token.revoked_at ? (
+                            <span className="text-error">Revoked {formatDate(token.revoked_at)}</span>
+                          ) : (
+                            <>{token.token_prefix}{token.last_used_at ? " · Last used " + formatDate(token.last_used_at) : " · Never used"}</>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    {!token.revoked_at && (
+                      <button onClick={() => revokeToken(token.id)} disabled={revoking === token.id}
+                        className="text-text-secondary hover:text-error transition p-1.5 disabled:opacity-40 cursor-pointer" title="Revoke">
+                        {revoking === token.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                      </button>
+                    )}
                   </div>
-                </div>
-                {!token.revoked_at && (
-                  <button onClick={() => revokeToken(token.id)} disabled={revoking === token.id}
-                    className="text-text-secondary hover:text-error transition p-1.5 disabled:opacity-40 cursor-pointer" title="Revoke">
-                    {revoking === token.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                  </button>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
 
-        {/* MCP endpoint display */}
-        {mcpEndpoint && (
+        {/* ── Persistent MCP Connection Guide ── */}
+        <div ref={guideRef} className="rounded-2xl border border-border-default overflow-hidden">
+          <button
+            onClick={() => setGuideExpanded(!guideExpanded)}
+            className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-bg-surface-muted/30 transition cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="size-8 rounded-full bg-accent/10 flex items-center justify-center">
+                <Terminal className="size-4 text-accent" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-text-primary">Connect Your AI Agent</h3>
+                <p className="text-xs text-text-muted">Configure Claude Code, Hermes Agent, or any MCP client</p>
+              </div>
+            </div>
+            {guideExpanded ? <ChevronDown className="size-4 text-text-muted" /> : <ChevronRight className="size-4 text-text-muted" />}
+          </button>
+
+          {guideExpanded && (
+            <div className="px-5 pb-5 space-y-4">
+              {/* Endpoint */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">MCP Endpoint</p>
+                <div className="flex items-center gap-2 bg-bg-surface-muted/20 rounded-full px-4 py-2.5">
+                  <Globe className="size-4 text-accent shrink-0" />
+                  <code className="text-xs font-mono text-text-primary break-all">{mcpEndpoint}</code>
+                </div>
+              </div>
+
+              {/* Auth */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">Authentication</p>
+                <div className="flex items-center gap-2 bg-bg-surface-muted/20 rounded-full px-4 py-2.5">
+                  <Shield className="size-4 text-accent shrink-0" />
+                  <code className="text-xs font-mono text-text-muted break-all">Authorization: Bearer {'<your-token>'}</code>
+                </div>
+              </div>
+
+              {/* Config template */}
+              {configJson && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">MCP Configuration</p>
+                    <Button variant="secondary" size="sm" onClick={() => copyConfig(configJson!)}>
+                      {copiedConfig ? <Check className="size-3" /> : <Copy className="size-3" />}
+                      {copiedConfig ? "Copied" : "Copy"}
+                    </Button>
+                  </div>
+                  <pre className="text-xs text-text-primary bg-bg-base rounded-2xl p-4 overflow-x-auto whitespace-pre font-mono leading-relaxed select-all border border-border-default">
+{configJson}
+                  </pre>
+                  <p className="text-xs text-text-muted">
+                    {newToken
+                      ? "This config uses the token you just created. Save it in your AI agent's config file."
+                      : activeTokens.length > 0
+                        ? "Add this config to your AI agent. Replace the token with a real one from an active token above."
+                        : "Create an access token above, then add this config to your AI agent."}
+                  </p>
+                </div>
+              )}
+
+              {/* No token state */}
+              {!configJson && (
+                <div className="rounded-2xl bg-bg-surface-muted/20 p-4 text-center space-y-2">
+                  <KeyRound className="size-5 text-text-muted mx-auto" />
+                  <p className="text-sm text-text-muted">Create an access token above to see your connection config.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* MCP endpoint display (inline) */}
+        {mcpEndpoint && !guideExpanded && (
           <div className="border-y border-border-default py-3 text-sm space-y-2">
             <div className="flex justify-between py-1.5">
               <span className="text-label text-text-muted">Endpoint</span>
@@ -408,15 +530,6 @@ export default function ProfilePage() {
               <span className="text-label text-text-muted">Auth</span>
               <code className="text-xs font-mono text-text-muted">Authorization: Bearer &lt;token&gt;</code>
             </div>
-          </div>
-        )}
-
-        {/* MCP Setup Prompt */}
-        {newToken && (
-          <div className="space-y-3 border-2 border-accent/30 rounded-2xl p-5 bg-accent/5">
-            <h3 className="text-sm font-bold text-accent">Agent setup prompt</h3>
-            <p className="text-xs text-text-muted">Copy this prompt and give it to your AI agent along with the token above.</p>
-            <pre className="text-xs text-text-primary bg-bg-base rounded-2xl p-4 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed select-all">{`Connect to my OpenSend MCP server:  \nEndpoint: ${mcpEndpoint}  \nToken: ${newToken}\n\nFor Claude Code or Hermes Agent, add to config:\n{\n  "mcpServers": {\n    "opensend": {\n      "url": "${mcpEndpoint}",\n      "headers": {\n        "Authorization": "Bearer ${newToken}"\n      }\n    }\n  }\n}`}</pre>
           </div>
         )}
       </div>
