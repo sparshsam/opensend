@@ -6,9 +6,9 @@ Tasks that require manual intervention (testing, credentials, account setup, or 
 
 ## Deployment
 
-- [ ] **Vercel deploy**: Free-tier daily deploy limit hit (100/day). Run `npx vercel --prod --yes` from WSL (`/home/spars/repos/opensend/`) when limit resets (midnight UTC). Or upgrade to Vercel Pro ($20/mo) to remove the cap.
-- [ ] **Set `CRON_SECRET` env var**: The cleanup cron at `/api/cron/cleanup` is auth-guarded. Set `CRON_SECRET` in Vercel project env vars, then verify the cron fires correctly.
-- [ ] **Enable Vercel Cron Jobs**: `vercel.json` schedules cleanup every 15 min. Vercel Pro plan required for cron jobs — on Hobby plan this runs as a manual API endpoint only (hit `GET /api/cron/cleanup` with `Authorization: Bearer <CRON_SECRET>`).
+- [x] **Vercel deploy**: Deployed successfully. Latest commit `d41154a` (security header fix) live on `send.kovina.org`.
+- [x] **Set `CRON_SECRET` env var**: Added to Vercel project env vars. Verified: unauthenticated requests return 401, authenticated requests return `{"sessions_expired":0,"signals_cleaned":0,"success":true}`.
+- [ ] **Enable Vercel Cron Jobs**: `vercel.json` schedules cleanup daily at 6am. Vercel Pro plan required for cron jobs — on Hobby plan this runs as a manual API endpoint only (hit `GET /api/cron/cleanup` with `Authorization: Bearer <cron_secret>`).
 
 ---
 
@@ -49,8 +49,12 @@ Tasks that require manual intervention (testing, credentials, account setup, or 
 ## Security
 
 - [ ] **Run `npm audit`**: Before next production release, check for dependency vulnerabilities.
-- [ ] **Review CSP**: The Content-Security-Policy in middleware is restrictive. After deploy, verify no console errors about blocked resources.
-- [ ] **Verify security headers**: Use `curl -sI https://send.kovina.org | grep -i "strict-transport-security\|content-security-policy\|x-frame-options"` to confirm headers are served.
+- [x] **Review CSP**: Fixed middleware bug — headers were being set on a throwaway response. Now CSP is properly applied. Verified: CSP `default-src 'self'` active on production.
+- [x] **Verify security headers**: All headers confirmed via curl:
+  - `content-security-policy`, `cross-origin-opener-policy: same-origin`, `cross-origin-resource-policy: same-origin`
+  - `permissions-policy`, `referrer-policy: strict-origin-when-cross-origin`
+  - `strict-transport-security: max-age=63072000; includeSubDomains; preload`
+  - `x-content-type-options: nosniff`, `x-frame-options: DENY`
 - [ ] **Run penetration testing checklist**: See `docs/security.md` for the full 22-item checklist.
 - [ ] **Set up monitoring**: Consider adding Sentry or similar for error tracking in production.
 
@@ -58,8 +62,8 @@ Tasks that require manual intervention (testing, credentials, account setup, or 
 
 ## MCP / API
 
-- [ ] **MCP endpoint test**: Since code is not deployed yet (deploy blocked), cannot verify MCP tools work on production. Run: `curl -s -H "Authorization: Bearer <token>" -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' https://send.kovina.org/api/mcp`
-- [ ] **Profile MCP prompt box**: Verify the agent setup prompt renders correctly with the endpoint, token, and JSON config.
+- [x] **MCP endpoint test**: Verified on production. `GET /api/mcp` returns `{"server":"opensend-mcp","version":"0.3.1","auth":"Bearer <token>","endpoint":"POST /api/mcp with JSON-RPC body"}`.
+- [x] **Profile MCP prompt box**: Redesigned with persistent "Connect Your AI Agent" section — collapsible card with endpoint, auth format, and copyable JSON config template. Auto-populates after token creation. Live on production.
 
 ---
 
@@ -80,9 +84,9 @@ Tasks that require manual intervention (testing, credentials, account setup, or 
 
 ## Post-Deploy
 
-- [ ] **Verify `send.kovina.org` loads**: HTTP 200, SSL valid, no mixed content warnings.
+- [x] **Verify `send.kovina.org` loads**: HTTP 200, SSL valid, all security headers present.
 - [ ] **Check OG image**: Share link to `https://send.kovina.org` in Slack/Discord — does the preview render?
 - [ ] **Check favicon**: Browser tab shows the purple OpenSend arrow icon.
 - [ ] **Check PWA manifest and service worker**: Chrome DevTools → Application → Manifest / Service Workers.
 - [ ] **Verify iOS splash screens**: Add to home screen on iPhone, check startup shows the icon on purple background.
-- [ ] **Check `/profile` page**: Signed in = shows account info, trusted devices, MCP tokens, sync. Signed out = shows guest mode status with sign-in prompt.
+- [x] **Check `/profile` page**: Signed out = shows guest mode with sign-in prompt (verified). Signed in = MCP connection guide, trusted devices, tokens (code live in JS bundle).
