@@ -25,17 +25,17 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 export async function middleware(request: NextRequest) {
-  // Apply Supabase session
-  const response = NextResponse.next();
+  // Apply Supabase session first — this returns the actual response
+  const response = await updateSession(request);
 
-  // Apply security headers
+  // Apply security headers to the real response that gets sent
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(key, value);
   }
   response.headers.set("Content-Security-Policy", CSP_HEADER);
   response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
 
-  return await updateSession(request);
+  return response;
 }
 
 export const config = {
