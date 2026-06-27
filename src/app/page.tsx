@@ -10,7 +10,7 @@ export default function HomePage() {
   const router = useRouter();
 
   return (
-    <div className="space-y-6 py-4">
+    <div className="space-y-4 py-1">
       <div className="text-center space-y-4">
         <h1 className="text-hero text-text-primary">OpenSend</h1>
         <p className="text-lg text-text-secondary max-w-md mx-auto">

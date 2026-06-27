@@ -458,7 +458,7 @@ function ReceiveContent() {
   // ── COMPLETED — RECEIPT + DOWNLOAD ──
   if (receiveState === "completed") {
     return (
-      <div className="text-center space-y-4 py-3">
+      <div className="text-center space-y-3 py-1">
         {/* Hero result */}
         <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-accent/10">
           <Check className="size-8 text-accent" />
@@ -568,7 +568,7 @@ function ReceiveContent() {
   // IDLE / CODE ENTRY
   // ══════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-4 py-2">
+    <div className="space-y-3 py-0.5">
       <button onClick={() => { reset(); router.push("/"); }}
         className="text-sm text-text-muted hover:text-text-primary transition flex items-center gap-1 cursor-pointer">
         <ArrowLeft className="size-4" /> Back
@@ -817,7 +817,7 @@ function ReceiveContent() {
 export default function ReceivePage() {
   return (
     <Suspense fallback={
-      <div className="text-center py-4">
+      <div className="text-center py-2">
         <Loader2 className="mx-auto size-8 text-accent animate-spin" />
       </div>
     }>

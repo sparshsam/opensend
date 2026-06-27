@@ -548,7 +548,7 @@ export default function SendPage() {
   // ── FILE SELECTION SCREEN ──
   if (selectedFiles.length === 0) {
     return (
-      <div className="space-y-4 py-2">
+      <div className="space-y-3 py-0.5">
         <button onClick={() => router.push("/")} className="text-sm text-text-muted hover:text-text-primary transition flex items-center gap-1 cursor-pointer">
           <ArrowLeft className="size-4" /> Back
         </button>
@@ -615,7 +615,7 @@ export default function SendPage() {
   // ── FILES SELECTED, NOT YET CREATED ──
   if (!guestCode) {
     return (
-      <div className="space-y-6 py-4">
+      <div className="space-y-4 py-1">
         <button onClick={resetSend} className="text-sm text-text-muted hover:text-text-primary transition flex items-center gap-1 cursor-pointer">
           <ArrowLeft className="size-4" /> Back
         </button>
@@ -699,7 +699,7 @@ export default function SendPage() {
   // ══════════════════════════════════════════════════════════════
 
   return (
-    <div className="space-y-4 py-2">
+    <div className="space-y-3 py-0.5">
       <button onClick={resetSend} className="text-sm text-text-muted hover:text-text-primary transition flex items-center gap-1 cursor-pointer">
         <ArrowLeft className="size-4" /> Back
       </button>

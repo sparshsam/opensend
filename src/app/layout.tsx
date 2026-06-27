@@ -115,7 +115,7 @@ export default function RootLayout({
             <DeviceProvider>
               <TransferProvider>
                 <SiteHeader />
-                <main id="main-content" className="mx-auto max-w-2xl px-4 sm:px-6 pt-2 sm:pt-3 pb-6">
+                <main id="main-content" className="mx-auto max-w-2xl px-4 sm:px-6 pt-1 sm:pt-2 pb-6">
                   <CapacitorFetchProvider>
                     <PageTransition>
                       {children}
