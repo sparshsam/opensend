@@ -11,7 +11,7 @@
     "cap:sync": "npx cap sync",
     "cap:copy": "npx cap copy",
     "cap:open:android": "npx cap open android",
-    "android:build": "CAPACITOR_BUILD=true next build && npx cap copy android && cd android && ./gradlew assembleDebug",
+    "android:build": "bash scripts/capacitor-build.sh",
     "android:release": "CAPACITOR_BUILD=true next build && npx cap copy android && cd android && ./gradlew bundleRelease",
     "android:icons": "node scripts/generate-android-icons.js",
     "desktop:install": "cd apps/desktop && npm install",
