@@ -6,44 +6,54 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-API_STASH_DIR="/tmp/opensend-api-stash"
+STASH_DIR="/tmp/opensend-build-stash"
 
 cd "$PROJECT_DIR"
 
 echo "=== OpenSend Capacitor Build ==="
 
-# 1. Move API routes out of the build path
-echo "Stashing API routes..."
-mkdir -p "$API_STASH_DIR"
-for f in $(find src/app/api -name "route.ts"); do
+# 1. Move dynamic routes out of the build path (API routes + dynamic pages)
+echo "Stashing dynamic routes..."
+mkdir -p "$STASH_DIR"
+
+# Stash API routes
+find src/app/api -name "route.ts" -print0 | while IFS= read -r -d '' f; do
   rel="${f#src/app/}"
-  mkdir -p "$(dirname "$API_STASH_DIR/$rel")"
-  mv "$f" "$API_STASH_DIR/$rel"
+  target_dir="$STASH_DIR/$(dirname "$rel")"
+  mkdir -p "$target_dir"
+  mv "$f" "$target_dir/"
 done
-# Also stash auth/callback (it's an API-like route)
-if [ -f src/app/auth/callback/route.ts ]; then
-  mkdir -p "$API_STASH_DIR/auth/callback"
-  mv src/app/auth/callback/route.ts "$API_STASH_DIR/auth/callback/route.ts"
+
+# Stash auth/callback (API-like route)
+if [ -f "src/app/auth/callback/route.ts" ]; then
+  mkdir -p "$STASH_DIR/auth/callback"
+  mv src/app/auth/callback/route.ts "$STASH_DIR/auth/callback/route.ts"
 fi
 
-# Also stash dynamic page routes not needed in native app
-if [ -f src/app/t/\[code\]/page.tsx ]; then
-  mkdir -p "$API_STASH_DIR/t/\[code\]"
-  mv src/app/t/\[code\]/page.tsx "$API_STASH_DIR/t/\[code\]/page.tsx"
+# Stash t/[code]/page.tsx (dynamic page not needed in native app)
+PAGE_FILE=$(find src/app/t -name "page.tsx" -path "*/t/*" 2>/dev/null || true)
+if [ -n "$PAGE_FILE" ] && [ -f "$PAGE_FILE" ]; then
+  rel="${PAGE_FILE#src/app/}"
+  mkdir -p "$STASH_DIR/$(dirname "$rel")"
+  mv "$PAGE_FILE" "$STASH_DIR/$rel"
+  echo "Stashed: $rel"
 fi
 
 # 2. Run next build with static export
 echo "Building Next.js static export..."
 CAPACITOR_BUILD=true npx next build
 
-# 3. Restore API routes and stashed pages
+# 3. Restore stashed files
 echo "Restoring stashed files..."
-for f in $(find "$API_STASH_DIR" -name "route.ts" -o -name "page.tsx"); do
-  rel="${f#$API_STASH_DIR/}"
-  mkdir -p "$(dirname "$PROJECT_DIR/src/app/$rel")"
-  mv "$f" "$PROJECT_DIR/src/app/$rel"
-done
-rm -rf "$API_STASH_DIR"
+if [ -d "$STASH_DIR" ]; then
+  find "$STASH_DIR" -type f -print0 | while IFS= read -r -d '' f; do
+    rel="${f#$STASH_DIR/}"
+    target_dir="$PROJECT_DIR/src/app/$(dirname "$rel")"
+    mkdir -p "$target_dir"
+    mv "$f" "$target_dir/"
+  done
+  rm -rf "$STASH_DIR"
+fi
 
 # 4. Copy to Android
 echo "Copying to Android..."

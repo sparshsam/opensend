@@ -9,6 +9,12 @@ import { DeviceProvider } from "@/components/device-provider";
 import { TransferProvider } from "@/components/transfer-provider";
 import { PwaScripts } from "@/components/pwa-scripts";
 import { PageTransition } from "@/components/page-transition";
+import { setupCapacitorFetch } from "@/lib/api-fetch";
+
+// Patch fetch for Capacitor builds (file:// protocol -> production API)
+if (typeof window !== "undefined") {
+  setupCapacitorFetch();
+}
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -114,7 +120,7 @@ export default function RootLayout({
             <DeviceProvider>
               <TransferProvider>
                 <SiteHeader />
-                <main id="main-content" className="mx-auto max-w-2xl px-4 sm:px-6 pt-24 sm:pt-28 pb-24">
+                <main id="main-content" className="mx-auto max-w-2xl px-4 sm:px-6 pt-12 sm:pt-16 pb-24">
                   <PageTransition>
                     {children}
                   </PageTransition>
