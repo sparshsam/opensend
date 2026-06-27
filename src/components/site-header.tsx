@@ -32,7 +32,7 @@ export function SiteHeader() {
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
         role="banner"
       >
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 sm:px-6 py-3 sm:py-4 gap-2">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 sm:px-6 py-2 sm:py-3 gap-2">
           <Link
             href="/"
             className="text-lg font-bold text-text-primary shrink-0"
