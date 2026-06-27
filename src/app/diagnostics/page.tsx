@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useDevice } from "@/components/device-provider";
 import { getGuestDevice } from "@/lib/guest-device";
-import { Monitor, Smartphone, Wifi, WifiOff, Activity } from "lucide-react";
+import { Monitor, Smartphone, Wifi, WifiOff, Activity, Copy, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function DiagnosticsPage() {
   const { user } = useAuth();
@@ -12,6 +13,48 @@ export default function DiagnosticsPage() {
   const [gd, setGd] = useState<ReturnType<typeof getGuestDevice>>({ name: "—", id: "—", platform: "—", browser: "—", os: "—", deviceType: "—", createdAt: "" });
   const [webRTCStatus, setWebRTCStatus] = useState("checking...");
   const [iceState, setIceState] = useState("—");
+  const [copied, setCopied] = useState(false);
+
+  const copyDiagnostics = async () => {
+    const browserDiag = {
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "—",
+      platform: typeof navigator !== "undefined" ? navigator.platform : "—",
+      screenSize: typeof screen !== "undefined" ? `${screen.width}×${screen.height}` : "—",
+      connectionType: typeof navigator !== "undefined" && "connection" in navigator
+        ? ((navigator as any).connection?.effectiveType || "unknown")
+        : "unknown",
+      webRTCSupported: typeof RTCPeerConnection !== "undefined" ? "yes" : "no",
+    };
+    const text = [
+      "=== OpenSend Diagnostics ===",
+      "--- Device ---",
+      `Name: ${gd.name}`,
+      `ID: ${gd.id}`,
+      `Platform: ${gd.platform}`,
+      `Browser: ${gd.browser}`,
+      `OS: ${gd.os}`,
+      "--- Connection ---",
+      `WebRTC: ${webRTCStatus}`,
+      `STUN: stun.l.google.com:19302`,
+      `TURN: Not configured`,
+      `Crypto (SHA-256): Available`,
+      `DataChannel: Supported`,
+      "--- Account ---",
+      `Mode: ${user ? "Signed in" : "Guest"}`,
+      ...(user ? [`User: ${user.email}`] : []),
+      `Devices: ${user ? `${devices.length} registered` : "1 local (guest)"}`,
+      "--- Browser ---",
+      `UA: ${browserDiag.userAgent}`,
+      `Platform: ${browserDiag.platform}`,
+      `Screen: ${browserDiag.screenSize}`,
+      `Connection: ${browserDiag.connectionType}`,
+      `WebRTC: ${browserDiag.webRTCSupported}`,
+      "============================",
+    ].join("\n");
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+  };
 
   useEffect(() => {
     // Check WebRTC support
@@ -139,6 +182,12 @@ export default function DiagnosticsPage() {
           </div>
         </div>
       </div>
+
+      {/* Copy diagnostics */}
+      <Button variant="secondary" className="w-full" onClick={copyDiagnostics}>
+        {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+        {copied ? "Copied" : "Copy diagnostics"}
+      </Button>
     </div>
   );
 }
