@@ -7,9 +7,9 @@
 
 const CAPACITOR_API_BASE = "https://send.kovina.org";
 
-/** Current build info — injected at build time via constants below */
-export const BUILD_COMMIT = "e44d455";
-export const BUILD_TIME = "2026-06-26T23:50:00Z";
+/** Current build info — set by build script */
+export const BUILD_COMMIT = "__BUILD_COMMIT__";
+export const BUILD_TIME = "__BUILD_TIME__";
 
 function getApiBase(): string {
   if (typeof window !== "undefined" && window.location.protocol === "file:") {
