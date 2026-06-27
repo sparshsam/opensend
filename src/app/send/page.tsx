@@ -15,6 +15,7 @@ import { WebRTCEngine, type TransferProgress, type TransferMetadata, formatSpeed
 import { TRANSFER_METHODS, getDefaultMethod, type TransferMethod, getMethodInfo } from "@/lib/transfer-methods";
 import { useRouter } from "next/navigation";
 import { addLocalHistory } from "@/lib/local-history";
+import { apiFetch, apiFetchJson } from "@/lib/api-fetch";
 
 type SendState =
   | "select-files"
@@ -253,7 +254,7 @@ export default function SendPage() {
 
     const firstFile = selectedFiles[0].file;
     try {
-      const res = await fetch("/api/guest/sessions", {
+      const data = await apiFetchJson("/api/guest/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -265,11 +266,6 @@ export default function SendPage() {
           total_size: totalSize,
         }),
       });
-      if (!res.ok) {
-        const e = await res.json();
-        throw new Error(e.error || e.details || "Failed to create session");
-      }
-      const data = await res.json();
       setGuestSessionId(data.session_id);
       setGuestSecret(data.transfer_secret);
       setGuestCode(data.transfer_code);
@@ -320,7 +316,7 @@ export default function SendPage() {
           const formData = new FormData();
           formData.append("file", firstFile);
 
-          const uploadRes = await fetch("/api/guest/upload", {
+          const uploadRes = await apiFetch("/api/guest/upload", {
             method: "POST",
             headers: {
               "X-Session-Id": data.session_id,
@@ -331,14 +327,21 @@ export default function SendPage() {
           });
 
           if (!uploadRes.ok) {
-            const e = await uploadRes.json();
-            throw new Error(e.error || "Upload failed");
+            const text = await uploadRes.text().catch(() => "");
+            let msg = "Upload failed";
+            try { const j = JSON.parse(text); msg = j.error || msg; } catch {}
+            throw new Error(msg);
+          }
+
+          const ct = uploadRes.headers.get("content-type") || "";
+          if (!ct.includes("application/json")) {
+            throw new Error(`Upload returned ${ct}, expected JSON`);
           }
 
           const uploadData = await uploadRes.json();
           setCloudShareUrl(uploadData.share_url);
 
-          await fetch("/api/guest/sessions", {
+          await apiFetch("/api/guest/sessions", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -545,7 +548,7 @@ export default function SendPage() {
   // ── FILE SELECTION SCREEN ──
   if (selectedFiles.length === 0) {
     return (
-      <div className="space-y-8 py-4">
+      <div className="space-y-4 py-2">
         <button onClick={() => router.push("/")} className="text-sm text-text-muted hover:text-text-primary transition flex items-center gap-1 cursor-pointer">
           <ArrowLeft className="size-4" /> Back
         </button>
@@ -695,7 +698,7 @@ export default function SendPage() {
   // ══════════════════════════════════════════════════════════════
 
   return (
-    <div className="space-y-8 py-4">
+    <div className="space-y-4 py-2">
       <button onClick={resetSend} className="text-sm text-text-muted hover:text-text-primary transition flex items-center gap-1 cursor-pointer">
         <ArrowLeft className="size-4" /> Back
       </button>

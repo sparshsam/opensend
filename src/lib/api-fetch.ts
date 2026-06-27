@@ -3,9 +3,6 @@
  *
  * In Capacitor builds (file:// protocol), API calls use the production URL.
  * In web/server mode, they use relative paths (/api/...).
- *
- * Also provides a one-time setup that patches window.fetch for API routes
- * so existing code using direct fetch() continues to work in Capacitor.
  */
 
 const CAPACITOR_API_BASE = "https://send.kovina.org";
@@ -17,6 +14,10 @@ function getApiBase(): string {
   return "";
 }
 
+/**
+ * Fetch with automatic base URL for Capacitor builds.
+ * Always use this instead of raw fetch() for API calls.
+ */
 export async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   const base = getApiBase();
   const url = base ? `${base}${path}` : path;
@@ -24,10 +25,45 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<Res
 }
 
 /**
- * Patch window.fetch so that any request to /api/* is automatically
- * redirected to the production server when running from file:// protocol.
+ * Safe JSON fetch: extracts JSON from an API response with guard rails.
  *
- * Call this once at app startup (in layout.tsx).
+ * - Throws if response is not ok (non-2xx)
+ * - Throws if content-type is not application/json (e.g. HTML error page)
+ * - Throws if JSON parsing fails
+ *
+ * Use this for every API call that expects JSON.
+ */
+export async function apiFetchJson(path: string, options?: RequestInit): Promise<any> {
+  const res = await apiFetch(path, options);
+
+  const contentType = res.headers.get("content-type") || "";
+
+  if (!res.ok) {
+    let body = "";
+    try {
+      body = await res.text();
+    } catch {}
+    throw new Error(`API ${res.status} ${res.statusText} — ${path}: ${body.slice(0, 200)}`);
+  }
+
+  if (!contentType.includes("application/json")) {
+    const body = await res.text().catch(() => "");
+    const preview = body.replace(/\\s+/g, " ").trim().slice(0, 120);
+    throw new Error(`Expected JSON from ${path}, got ${contentType || "unknown"}: ${preview}`);
+  }
+
+  try {
+    return await res.json();
+  } catch (err: any) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`JSON parse error on ${path}: ${err.message} — body: ${text.slice(0, 200)}`);
+  }
+}
+
+/**
+ * Patch window.fetch so that any request to /api/* or /auth/* is
+ * automatically redirected to production when running from file:// protocol.
+ * Call from a useEffect in a client component.
  */
 export function setupCapacitorFetch() {
   if (typeof window === "undefined") return;
@@ -38,7 +74,6 @@ export function setupCapacitorFetch() {
   const originalFetch = window.fetch.bind(window);
   window.fetch = function patchedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    // Only patch /api/* and /auth/* routes
     if (url.startsWith("/api/") || url.startsWith("/auth/")) {
       return originalFetch(`${CAPACITOR_API_BASE}${url}`, init);
     }

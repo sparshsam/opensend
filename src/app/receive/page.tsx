@@ -13,7 +13,7 @@ import { WebRTCEngine, type TransferProgress, type TransferMetadata, type BatchM
 import { useRouter, useSearchParams } from "next/navigation";
 import { formatBytes } from "@/lib/utils";
 import { addLocalHistory } from "@/lib/local-history";
-
+import { apiFetch } from "@/lib/api-fetch";
 type ReceiveState =
   | "idle"
   | "looking-up"
@@ -177,19 +177,28 @@ function ReceiveContent() {
         ? `/api/guest/sessions?session_id=${sessionIdOverride}`
         : `/api/guest/sessions?code=${codeToUse}`;
 
-      const res = await fetch(lookupUrl);
+      const res = await apiFetch(lookupUrl);
       if (!res.ok) {
-        const errBody = await res.json().catch(() => ({ error: "Session not found" }));
+        let body = "";
+        try { body = await res.text(); } catch {}
+        let errMsg = "Session not found";
+        try { const j = JSON.parse(body); errMsg = j.error || errMsg; } catch {}
         let message: string;
         if (res.status === 404) {
           message = "Incorrect code — session not found. Check the code and try again.";
         } else if (res.status === 410) {
-          message = errBody.error || "This session has expired or already been used.";
+          message = errMsg || "This session has expired or already been used.";
         } else {
-          message = errBody.error || "Could not look up session.";
+          message = errMsg || "Could not look up session.";
         }
         setReceiveState("idle");
         setError(message);
+        return;
+      }
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        setReceiveState("idle");
+        setError("Session lookup returned unexpected response.");
         return;
       }
       const data = await res.json();
@@ -203,7 +212,7 @@ function ReceiveContent() {
 
       const receiverName = generateEphemeralName();
 
-      const joinRes = await fetch("/api/guest/sessions", {
+      const joinRes = await apiFetch("/api/guest/sessions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -214,12 +223,14 @@ function ReceiveContent() {
         }),
       });
       if (!joinRes.ok) {
-        const e = await joinRes.json();
+        const text = await joinRes.text().catch(() => "");
+        let errMsg = "Failed to join session";
+        try { const j = JSON.parse(text); errMsg = j.error || errMsg; } catch {}
         let message: string;
         if (joinRes.status === 410 || joinRes.status === 404) {
-          message = e.error || "Session no longer available. The code may have expired.";
+          message = errMsg || "Session no longer available. The code may have expired.";
         } else {
-          message = e.error || "Failed to join session";
+          message = errMsg || "Failed to join session";
         }
         setReceiveState("idle");
         setError(message);
@@ -292,7 +303,7 @@ function ReceiveContent() {
 
       if (cancelledRef.current) return;
 
-      await fetch("/api/guest/signal", {
+      await apiFetch("/api/guest/signal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -312,7 +323,11 @@ function ReceiveContent() {
       let offerFound = false;
       const pollDeadline = Date.now() + 60000;
       while (!offerFound && !cancelledRef.current && Date.now() < pollDeadline) {
-        const signals = await fetch(`/api/guest/signal?session_id=${data.session_id}`).then(r => r.json());
+        const sigRes = await apiFetch(`/api/guest/signal?session_id=${data.session_id}`);
+      if (!sigRes.ok) {
+        console.warn("[Receive] Signal poll failed:", sigRes.status);
+      } else {
+        const signals = await sigRes.json();
         for (const sig of signals || []) {
           if (sig.message_type === "offer" && sig.sender_type === "sender") {
             offerFound = true;
@@ -330,6 +345,7 @@ function ReceiveContent() {
             });
             break;
           }
+        }
         }
         if (!offerFound && !cancelledRef.current) await new Promise(r => setTimeout(r, 500));
       }
@@ -442,7 +458,7 @@ function ReceiveContent() {
   // ── COMPLETED — RECEIPT + DOWNLOAD ──
   if (receiveState === "completed") {
     return (
-      <div className="text-center space-y-6 py-6">
+      <div className="text-center space-y-4 py-3">
         {/* Hero result */}
         <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-accent/10">
           <Check className="size-8 text-accent" />
@@ -552,7 +568,7 @@ function ReceiveContent() {
   // IDLE / CODE ENTRY
   // ══════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-8 py-6">
+    <div className="space-y-4 py-2">
       <button onClick={() => { reset(); router.push("/"); }}
         className="text-sm text-text-muted hover:text-text-primary transition flex items-center gap-1 cursor-pointer">
         <ArrowLeft className="size-4" /> Back
@@ -801,7 +817,7 @@ function ReceiveContent() {
 export default function ReceivePage() {
   return (
     <Suspense fallback={
-      <div className="text-center py-20">
+      <div className="text-center py-4">
         <Loader2 className="mx-auto size-8 text-accent animate-spin" />
       </div>
     }>
