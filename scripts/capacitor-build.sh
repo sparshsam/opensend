@@ -39,9 +39,14 @@ if [ -n "$PAGE_FILE" ] && [ -f "$PAGE_FILE" ]; then
   echo "Stashed: $rel"
 fi
 
-# 2. Run next build with static export
+# 2. Inject build info and run next build
 echo "Building Next.js static export..."
+BUILD_COMMIT=$(git rev-parse --short HEAD)
+BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+sed -i "s/__BUILD_COMMIT__/$BUILD_COMMIT/g; s/__BUILD_TIME__/$BUILD_TIME/g" src/lib/api-fetch.ts
 CAPACITOR_BUILD=true npx next build
+# Restore placeholders after build
+git checkout -- src/lib/api-fetch.ts
 
 # 3. Restore stashed files
 echo "Restoring stashed files..."
