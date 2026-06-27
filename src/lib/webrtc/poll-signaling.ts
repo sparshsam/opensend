@@ -14,6 +14,7 @@
  */
 
 import type { SignalMessage } from "./webrtc-engine";
+import { apiFetch } from "@/lib/api-fetch";
 
 export type PollSignalHandler = (msg: SignalMessage) => void;
 
@@ -60,7 +61,7 @@ export class PollSignaling {
 
     console.log("[PollSignaling] Sending signal:", msg.type);
     try {
-      const res = await fetch("/api/guest/signal", {
+      const res = await apiFetch("/api/guest/signal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -100,7 +101,7 @@ export class PollSignaling {
     if (!this._active) return;
     console.log("[PollSignaling] Sending cancel...");
     try {
-      await fetch("/api/guest/signal", {
+      await apiFetch("/api/guest/signal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -125,7 +126,7 @@ export class PollSignaling {
         status,
       };
       if (extra) Object.assign(body, extra);
-      await fetch("/api/guest/sessions", {
+      await apiFetch("/api/guest/sessions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -138,7 +139,7 @@ export class PollSignaling {
   /** Get current session info */
   async getSessionInfo(): Promise<any> {
     try {
-      const res = await fetch(`/api/guest/sessions?code=${this.sessionId}&secret=${this.secret}`);
+      const res = await apiFetch(`/api/guest/sessions?code=${this.sessionId}&secret=${this.secret}`);
       if (res.ok) return await res.json();
       if (res.status === 410) {
         this._onExpired?.();
@@ -157,7 +158,7 @@ export class PollSignaling {
         session_id: this.sessionId,
         since: this.lastPollTime,
       });
-      const res = await fetch(`/api/guest/signal?${params}`);
+      const res = await apiFetch(`/api/guest/signal?${params}`);
 
       if (res.status === 410) {
         // Session expired or cancelled

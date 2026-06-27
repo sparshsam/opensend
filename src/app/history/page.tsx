@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth-provider";
 import { useDevice } from "@/components/device-provider";
 import { Button } from "@/components/ui/button";
 import { formatBytes, formatDate } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface HistoryItem {
   id: string;
@@ -34,7 +35,7 @@ export default function HistoryPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/transfers?status=all");
+      const res = await apiFetch("/api/transfers?status=all");
       if (res.ok) {
         const data = await res.json();
         // Map transfers to history items with device info
@@ -72,7 +73,7 @@ export default function HistoryPage() {
   const handleDelete = async (id: string) => {
     setDeleting(id);
     try {
-      const res = await fetch(`/api/transfers/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/transfers/${id}`, { method: "DELETE" });
       if (res.ok) {
         setItems((prev) => prev.filter((i) => i.id !== id));
       }

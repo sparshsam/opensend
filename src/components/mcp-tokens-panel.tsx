@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, Loader2, Plus, Trash2, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api-fetch";
 import { formatDate } from "@/lib/utils";
 
 interface McpToken {
@@ -26,7 +27,7 @@ export function McpTokensPanel() {
   const loadTokens = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/mcp/tokens");
+      const res = await apiFetch("/api/mcp/tokens");
       if (res.ok) {
         setTokens(await res.json());
       }
@@ -45,7 +46,7 @@ export function McpTokensPanel() {
     setCreating(true);
     setNewToken(null);
     try {
-      const res = await fetch("/api/mcp/tokens", {
+      const res = await apiFetch("/api/mcp/tokens", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: tokenName || "MCP Access Token" }),
@@ -66,7 +67,7 @@ export function McpTokensPanel() {
 
   const revokeToken = async (id: string) => {
     try {
-      const res = await fetch(`/api/mcp/tokens/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/mcp/tokens/${id}`, { method: "DELETE" });
       if (res.ok) {
         loadTokens();
       }

@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode, useCall
 import { useAuth } from "@/components/auth-provider";
 import { detectDevice, defaultDeviceName, type DeviceInfo } from "@/lib/device-detect";
 import type { Device } from "@/lib/supabase/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface DeviceContext {
   currentDevice: Device | null;
@@ -38,7 +39,7 @@ export function DeviceProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const res = await fetch("/api/devices");
+      const res = await apiFetch("/api/devices");
       if (res.ok) {
         const list: Device[] = await res.json();
         setDevices(list);
@@ -58,7 +59,7 @@ export function DeviceProvider({ children }: { children: ReactNode }) {
     const name = customName || defaultDeviceName(info);
 
     try {
-      const res = await fetch("/api/devices", {
+      const res = await apiFetch("/api/devices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -80,7 +81,7 @@ export function DeviceProvider({ children }: { children: ReactNode }) {
 
   const renameFn = useCallback(async (deviceId: string, name: string) => {
     try {
-      await fetch("/api/devices", {
+      await apiFetch("/api/devices", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ device_id: deviceId, name }),

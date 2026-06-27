@@ -6,6 +6,7 @@ import { useDevice } from "@/components/device-provider";
 import { WebRTCEngine, type TransferProgress, type TransferState, type TransferMetadata, computeSHA256, formatSpeed, formatETA } from "@/lib/webrtc/webrtc-engine";
 import { SignalingService, DeviceHeartbeat } from "@/lib/webrtc/signaling";
 import type { Device } from "@/lib/supabase/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 type TransferDirection = "send" | "receive" | null;
 
@@ -85,7 +86,7 @@ export function TransferProvider({ children }: { children: ReactNode }) {
     if (!user || !currentDevice || !receiverDeviceId) return;
 
     // Create session via API
-    const res = await fetch("/api/sessions", {
+    const res = await apiFetch("/api/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -140,7 +141,7 @@ export function TransferProvider({ children }: { children: ReactNode }) {
         signal.leave();
         engine.cleanup();
         // Update session status
-        fetch(`/api/sessions/${sessionId}`, {
+        apiFetch(`/api/sessions/${sessionId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -177,14 +178,14 @@ export function TransferProvider({ children }: { children: ReactNode }) {
     if (!currentDevice) return;
 
     // Update session status
-    await fetch(`/api/sessions/${sessionId}`, {
+    await apiFetch(`/api/sessions/${sessionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "accepted" }),
     });
 
     // Fetch session details to get the offer
-    const res = await fetch(`/api/sessions/${sessionId}`);
+    const res = await apiFetch(`/api/sessions/${sessionId}`);
     const session = await res.json();
 
     const transferItem: ActiveTransfer = {
@@ -215,7 +216,7 @@ export function TransferProvider({ children }: { children: ReactNode }) {
       if (s === "completed" || s === "cancelled" || s === "error") {
         signal.leave();
         engine.cleanup();
-        fetch(`/api/sessions/${sessionId}`, {
+        apiFetch(`/api/sessions/${sessionId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -247,7 +248,7 @@ export function TransferProvider({ children }: { children: ReactNode }) {
   }, [currentDevice]);
 
   const declineTransfer = useCallback(async (sessionId: string) => {
-    await fetch(`/api/sessions/${sessionId}`, {
+    await apiFetch(`/api/sessions/${sessionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "declined" }),
@@ -257,7 +258,7 @@ export function TransferProvider({ children }: { children: ReactNode }) {
   const cancelTransfer = useCallback(async (sessionId: string) => {
     engineRef.current.cancel();
     signalRef.current.leave();
-    await fetch(`/api/sessions/${sessionId}`, {
+    await apiFetch(`/api/sessions/${sessionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "cancelled" }),

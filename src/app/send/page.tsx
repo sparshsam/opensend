@@ -15,7 +15,7 @@ import { WebRTCEngine, type TransferProgress, type TransferMetadata, formatSpeed
 import { TRANSFER_METHODS, getDefaultMethod, type TransferMethod, getMethodInfo } from "@/lib/transfer-methods";
 import { useRouter } from "next/navigation";
 import { addLocalHistory } from "@/lib/local-history";
-import { apiFetch, apiFetchJson } from "@/lib/api-fetch";
+import { apiFetch, apiFetchJson, BUILD_COMMIT } from "@/lib/api-fetch";
 
 type SendState =
   | "select-files"
@@ -680,6 +680,7 @@ export default function SendPage() {
           {sending ? <Loader2 className="size-5 animate-spin" /> : <QrCode className="size-5" />}
           {sending ? "Creating session..." : "Generate pair code"}
         </Button>
+        <div className="text-center text-[10px] text-text-muted/30">APK build {BUILD_COMMIT}</div>
       </div>
     );
   }

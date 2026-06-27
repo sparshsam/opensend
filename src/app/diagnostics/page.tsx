@@ -6,6 +6,7 @@ import { useDevice } from "@/components/device-provider";
 import { getGuestDevice } from "@/lib/guest-device";
 import { Monitor, Smartphone, Wifi, WifiOff, Activity, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BUILD_COMMIT, BUILD_TIME } from "@/lib/api-fetch";
 
 export default function DiagnosticsPage() {
   const { user } = useAuth();
@@ -188,6 +189,11 @@ export default function DiagnosticsPage() {
         {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
         {copied ? "Copied" : "Copy diagnostics"}
       </Button>
+
+      {/* Build info */}
+      <div className="text-center text-[10px] text-text-muted/50 pt-2 pb-0">
+        APK build {BUILD_COMMIT} · {BUILD_TIME.slice(0, 10)}
+      </div>
     </div>
   );
 }

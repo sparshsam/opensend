@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Download, Loader2, Lock, AlertTriangle, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api-fetch";
 import { formatBytes, formatDate } from "@/lib/utils";
 
 interface TransferInfo {
@@ -31,7 +32,7 @@ export default function TransferPage() {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch(`/api/claim/${code}`);
+        const res = await apiFetch(`/api/claim/${code}`);
         if (res.ok) {
           const data = await res.json();
           if (!cancelled) {

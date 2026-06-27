@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth-provider";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDate } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface McpToken {
   id: string;
@@ -79,7 +80,7 @@ export default function ProfilePage() {
     if (!user) return;
     setDevicesLoading(true);
     try {
-      const res = await fetch("/api/devices");
+      const res = await apiFetch("/api/devices");
       if (res.ok) setDevices(await res.json());
     } catch {} finally {
       setDevicesLoading(false);
@@ -94,7 +95,7 @@ export default function ProfilePage() {
     if (!user) return;
     setTokensLoading(true);
     try {
-      const res = await fetch("/api/mcp/tokens");
+      const res = await apiFetch("/api/mcp/tokens");
       if (res.ok) setTokens(await res.json());
     } catch {} finally {
       setTokensLoading(false);
@@ -109,7 +110,7 @@ export default function ProfilePage() {
     setCreating(true);
     setNewToken(null);
     try {
-      const res = await fetch("/api/mcp/tokens", {
+      const res = await apiFetch("/api/mcp/tokens", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: tokenName || "MCP Access Token" }),
@@ -129,7 +130,7 @@ export default function ProfilePage() {
   const revokeToken = async (id: string) => {
     setRevoking(id);
     try {
-      const res = await fetch(`/api/mcp/tokens/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/mcp/tokens/${id}`, { method: "DELETE" });
       if (res.ok) loadTokens();
     } catch {} finally {
       setRevoking(null);
@@ -152,7 +153,7 @@ export default function ProfilePage() {
   const renameDevice = async (deviceId: string) => {
     if (!renameValue.trim()) return;
     try {
-      await fetch("/api/devices", {
+      await apiFetch("/api/devices", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ device_id: deviceId, name: renameValue.trim() }),
@@ -165,7 +166,7 @@ export default function ProfilePage() {
   const deleteDevice = async (deviceId: string) => {
     setDeletingDevice(deviceId);
     try {
-      await fetch(`/api/devices?id=${deviceId}`, { method: "DELETE" });
+      await apiFetch(`/api/devices?id=${deviceId}`, { method: "DELETE" });
       loadDevices();
     } catch {} finally {
       setDeletingDevice(null);

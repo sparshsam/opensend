@@ -7,6 +7,10 @@
 
 const CAPACITOR_API_BASE = "https://send.kovina.org";
 
+/** Current build info — injected at build time via constants below */
+export const BUILD_COMMIT = "e44d455";
+export const BUILD_TIME = "2026-06-26T23:50:00Z";
+
 function getApiBase(): string {
   if (typeof window !== "undefined" && window.location.protocol === "file:") {
     return CAPACITOR_API_BASE;
@@ -21,6 +25,10 @@ function getApiBase(): string {
 export async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   const base = getApiBase();
   const url = base ? `${base}${path}` : path;
+  // Log resolved URL in Capacitor debug mode
+  if (base && typeof console !== "undefined") {
+    console.log(`[apiFetch] ${path} → ${url}`);
+  }
   return fetch(url, options);
 }
 
@@ -48,7 +56,7 @@ export async function apiFetchJson(path: string, options?: RequestInit): Promise
 
   if (!contentType.includes("application/json")) {
     const body = await res.text().catch(() => "");
-    const preview = body.replace(/\\s+/g, " ").trim().slice(0, 120);
+    const preview = body.replace(/\s+/g, " ").trim().slice(0, 120);
     throw new Error(`Expected JSON from ${path}, got ${contentType || "unknown"}: ${preview}`);
   }
 
@@ -75,7 +83,9 @@ export function setupCapacitorFetch() {
   window.fetch = function patchedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.startsWith("/api/") || url.startsWith("/auth/")) {
-      return originalFetch(`${CAPACITOR_API_BASE}${url}`, init);
+      const resolved = `${CAPACITOR_API_BASE}${url}`;
+      console.log(`[fetch-patch] ${url} → ${resolved}`);
+      return originalFetch(resolved, init);
     }
     return originalFetch(input, init);
   };

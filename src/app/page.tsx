@@ -3,6 +3,7 @@
 import { ArrowUpFromLine, ArrowDownToLine, User } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
+import { BUILD_COMMIT } from "@/lib/api-fetch";
 
 export default function HomePage() {
   const { user, signIn } = useAuth();
@@ -59,6 +60,11 @@ export default function HomePage() {
           </button>
         </div>
       )}
+
+      {/* APK build marker */}
+      <div className="text-center text-[10px] text-text-muted/30">
+        APK build {BUILD_COMMIT}
+      </div>
     </div>
   );
 }
