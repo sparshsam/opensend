@@ -53,6 +53,7 @@ OpenSend — Free, ad-free, open-source file sharing. Direct device-to-device tr
 | v0.9.2 | Diagnostics copy button |
 | v0.9.3 | is_favorite migration + RLS audit |
 | v0.9.4 | **Android Debug Build** — API fetch, CORS, padding, build marker |
+| v0.9.5 | **Icon Refresh** — new app icon, all PWA/Android/iOS/social/favicon assets regenerated via `scripts/generate-icons.js` (local only, not committed) |
 
 ## Architecture
 
@@ -146,6 +147,7 @@ States: `idle` | `looking-up` | `joining` | `connected` | `waiting-for-sender` |
 | `apps/mcp/src/tools/transfers.ts` | Transfer tools (list, get, delete, export, history, sessions) |
 | `apps/mcp/src/tools/devices.ts` | Device tools (list, get, rename, online status, sessions) |
 | `apps/mcp/src/tools/guest-sessions.ts` | Guest session tools (create, lookup by code, lookup by claim) |
+| `scripts/generate-icons.js` | Icon generator — reads 1024px source PNG, outputs all 44 PWA/Android/iOS/favicon/social assets via sharp |
 
 ### API Endpoints
 | Method | Path | Purpose | Auth |
@@ -191,7 +193,7 @@ All OpenSend tables use `opensend_` prefix.
 - **Guest sessions:** `create_guest_session`, `get_guest_session`, `get_transfer_by_claim_code`
 
 ## Design
-- **Brand color:** `#bc3fde` (purple)
+- **Brand color:** `#bc3fde` (purple) — primary, used as icon/splash/social background
 - **Dark mode:** Deep purple bg (`#1a0422`), light text (`#ffffff`)
 - **Light mode:** Lavender bg (`#faf0ff`), dark text (`#1a0422`)
 - **Surface:** Dark `#240a30`, Light `#f5e6fa`

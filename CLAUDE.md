@@ -24,8 +24,9 @@ Deployed and live on `send.kovina.org`. APK at `C:\Users\spars\Desktop\OpenSend-
 | **v0.9.2** | Diagnostics Copy Button | `0928b18` |
 | **v0.9.3** | is_favorite migration + RLS audit | `4bc79c2` |
 | **v0.9.4** | Android Debug Build + API fetch fix + CORS | `db8ce81` |
+| **v0.9.5** | **Icon Refresh** — new app icon from `opensend.png`, all PWA/Android/iOS/social/favicon assets regenerated via `scripts/generate-icons.js` | *(not committed)* |
 
-All pushed to GitHub `main`. See `MANUAL_REVIEW_PENDING.md` for tasks requiring human action.
+All previous versions pushed to GitHub `main`. v0.9.5 changes are local only — not committed or deployed.
 
 ## Key Facts
 
@@ -47,14 +48,16 @@ All pushed to GitHub `main`. See `MANUAL_REVIEW_PENDING.md` for tasks requiring 
 - iOS PWA: apple-touch-icon, 8 splash sizes with media queries, viewport-fit=cover
 - OG image (1200x630), Twitter card, metadataBase
 
-### Icons & Assets (v0.5.0+)
-- Source: `public/opensend-icon.svg` — purple `#bc3fde` background + white upload arrow
-- Web: `favicon.ico`, `favicon.svg`, PNGs 16–512 at all sizes
-- iOS: 8 splash screens (`splash-640x1136` through `splash-2048x2732`)
-- Social: `opengraph-image.png` (1200x630)
-- Android: Adaptive icons (vector foreground + background), raster at 5 mipmap densities
-- Windows: `.ico` with 6 sizes (16–256)
-- Play Store: Feature graphic (1024x500), store icon (512x512)
+### Icons & Assets (v0.5.0+, refreshed v0.9.5)
+- **Source:** `public/opensend-icon.png` (1024×1024) — new icon, copied from `/mnt/c/Users/spars/Downloads/App Icons/opensend.png`
+- **Generator script:** `scripts/generate-icons.js` — reads source PNG, uses `sharp` to produce all 44 derived assets in one shot
+- **PWA web:** 14 icons (48–512px including `apple-touch-icon`), all regenerated
+- **Favicon:** `favicon.ico` (ICO-wrapped 32px), `favicon.svg` (inline-PNG), `favicon-16.png`, `favicon-32.png`
+- **iOS splash:** 8 sizes (`splash-640x1136` through `splash-2048x2732`) — icon centered on `#bc3fde` background
+- **Social:** `opengraph-image.png` (1200×630) — icon + "OpenSend" title + tagline on `#bc3fde`
+- **Android mipmap:** `ic_launcher`, `ic_launcher_round`, `ic_launcher_foreground` at 5 densities (48–192px), all regenerated
+- **Play Store:** icon (512×512) + feature graphic (1024×500) with icon left + branding text
+- **Windows:** `.ico` generated from 32px PNG output (singular, not multi-size — `favicon.ico` covers the web use)
 
 ### Transfer Methods
 - **Direct Transfer** (primary) — WebRTC P2P via STUN/TURN, QR encodes receive page URL
@@ -152,9 +155,10 @@ cd apps/desktop && npm install
 npm run desktop:build
 
 # Generate icons
-npm run desktop:icons     # Windows .ico
-npm run android:icons     # Android mipmap PNGs
-npx cap sync              # Sync Android Capacitor assets
+node scripts/generate-icons.js   # Generate ALL icons from source PNG (PWA, Android, iOS, favicon, social)
+npm run desktop:icons             # Windows .ico (if separate from web favicon)
+npm run android:icons             # Legacy Android script (superseded by generate-icons.js)
+npx cap sync                      # Sync Android Capacitor assets
 ```
 
 ## Critical Rules
