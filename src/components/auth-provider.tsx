@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { isNativeAuthAvailable, signInWithNativeGoogle } from "@/lib/native-google-auth";
 
 interface AuthContext {
   user: User | null;
@@ -37,12 +38,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin + "/auth/callback",
-      },
-    });
+    if (isNativeAuthAvailable()) {
+      // ── Native Android: Chrome Custom Tab in-app auth ──
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: "opensend://auth/callback",
+          skipBrowserRedirect: true,
+        },
+      });
+      if (error) throw error;
+      if (!data?.url) throw new Error("Failed to get auth URL");
+      await signInWithNativeGoogle(supabase, data.url);
+    } else {
+      // ── Web: standard popup / redirect ──
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin + "/auth/callback",
+        },
+      });
+    }
   };
 
   const signOut = async () => {

@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDownToLine, KeyRound, Loader2, Check,
   Smartphone, ArrowLeft, Bug, Download, File,
-  DownloadIcon, Clock, Wifi, Shield, X,
+  DownloadIcon, Clock, Wifi, Shield, X, ClipboardPaste,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateEphemeralName } from "@/lib/ephemeral-names";
@@ -596,7 +596,7 @@ function ReceiveContent() {
           </div>
 
           {/* Code input — hero */}
-          <div className="text-center">
+          <div className="text-center relative">
             <input
               value={enteredCode}
               onChange={(e) => handleCodeChange(e.target.value)}
@@ -604,6 +604,16 @@ function ReceiveContent() {
               maxLength={6}
               className="w-full text-center text-3xl sm:text-4xl font-black tracking-[0.3em] rounded-full px-6 py-5 bg-bg-surface-muted text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent"
             />
+            <button
+              onClick={async () => {
+                const text = await navigator.clipboard.readText().catch(() => "");
+                if (text) handleCodeChange(text.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6));
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-text-muted hover:text-text-primary transition cursor-pointer"
+              title="Paste from clipboard"
+            >
+              <ClipboardPaste className="size-4" />
+            </button>
           </div>
 
           <Button variant="primary" size="lg" className="w-full min-h-[56px] text-base"
