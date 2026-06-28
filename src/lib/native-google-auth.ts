@@ -14,6 +14,17 @@ import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackIdTokenReceived, trackAuthError } from "@/lib/auth-diag";
 
+/**
+ * Web OAuth client ID for Google sign-in.
+ * Stored directly here as a fallback — the Capacitor config JSON
+ * at `Capacitor.config.plugins.GoogleAuth.clientId` does not reliably
+ * propagate to the runtime on Android. This value is read from
+ * capacitor.config.ts during the build and baked into the JS bundle.
+ *
+ * If you need to rotate this, update capacitor.config.ts AND this constant.
+ */
+const GOOGLE_CLIENT_ID = "932918847607-dpo001dflibtevemp2lk13usrh2fq7og.apps.googleusercontent.com";
+
 // ── Detection ──
 
 /** Whether the Capacitor environment is present (native Android). */
@@ -27,36 +38,45 @@ export function isNativeAuthAvailable(): boolean {
 /** Whether the Capacitor Google Auth plugin is actually configured (clientId set). */
 export function isNativeAuthConfigured(): boolean {
   if (!isNativeAuthAvailable()) return false;
+  // Check Capacitor runtime config first, then fall back to hardcoded constant
   try {
     const cfg = (window as any).Capacitor?.config?.plugins?.GoogleAuth;
-    return !!(cfg?.clientId);
-  } catch {
-    return false;
-  }
+    if (cfg?.clientId) return true;
+  } catch {}
+  // Fallback: hardcoded clientId is always available
+  return GOOGLE_CLIENT_ID.length > 0;
 }
 
 /** Read plugin config for diagnostics — returns raw values, never throws. */
 export function getNativeAuthDiag() {
   try {
     const cap = (window as any).Capacitor;
+    const rawConfig = cap?.config || {};
+    const rawPlugins = rawConfig?.plugins || {};
     return {
       hasCapacitor: typeof cap !== "undefined",
       hasPlugins: typeof cap?.Plugins !== "undefined",
       hasGoogleAuthPlugin: typeof cap?.Plugins?.GoogleAuth !== "undefined",
-      configHasGoogleAuth: typeof cap?.config?.plugins?.GoogleAuth !== "undefined",
-      clientIdInConfig: !!(cap?.config?.plugins?.GoogleAuth?.clientId),
-      clientIdSuffix: cap?.config?.plugins?.GoogleAuth?.clientId
-        ? "..." + cap.config.plugins.GoogleAuth.clientId.slice(-8)
+      configHasPlugins: typeof rawPlugins === "object" && Object.keys(rawPlugins).length > 0,
+      configPluginKeys: Object.keys(rawPlugins).join(", ") || "(none)",
+      configHasGoogleAuth: typeof rawPlugins?.GoogleAuth !== "undefined",
+      clientIdInConfig: !!(rawPlugins?.GoogleAuth?.clientId),
+      clientIdSuffix: rawPlugins?.GoogleAuth?.clientId
+        ? "..." + rawPlugins.GoogleAuth.clientId.slice(-8)
         : "(empty)",
+      rawConfigJson: JSON.stringify(rawConfig).slice(0, 500),
     };
-  } catch {
+  } catch (e: any) {
     return {
       hasCapacitor: false,
       hasPlugins: false,
       hasGoogleAuthPlugin: false,
+      configHasPlugins: false,
+      configPluginKeys: "(error)",
       configHasGoogleAuth: false,
       clientIdInConfig: false,
-      clientIdSuffix: "(error)",
+      clientIdSuffix: `(error: ${e.message})`,
+      rawConfigJson: "(error)",
     };
   }
 }

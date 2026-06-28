@@ -83,9 +83,11 @@ export default function DiagnosticsPage() {
     `Deep-link listener: ${devInfo.deepLinkRegistered}`,
     `API session URL: ${devInfo.apiSessionUrl}`,
     `GoogleAuth plugin: ${devInfo.hasGoogleAuthPlugin}`,
+    `Config plugin keys: ${devInfo.configPluginKeys}`,
     `Config has GoogleAuth: ${devInfo.configHasGoogleAuth}`,
     `clientId present: ${devInfo.clientIdInConfig}`,
     `clientId suffix: ${devInfo.clientIdSuffix}`,
+    `Raw config: ${(devInfo as any).rawConfigJson?.slice(0, 200)}`,
     `Supabase session: ${!!devInfo.hasSupabaseSession}`,
     `Sign-in clicked: ${devInfo.signInClicked || 0}`,
     `Native attempted: ${!!devInfo.nativeAttempted}`,
@@ -163,6 +165,8 @@ export default function DiagnosticsPage() {
           <DevRow label="Deep-link listener" value={String(devInfo.deepLinkRegistered)} highlight={devInfo.deepLinkRegistered ? "text-accent" : ""} />
           <DevRow label="API session URL" value={devInfo.apiSessionUrl} mono={false} />
           <DevRow label="GoogleAuth plugin" value={devInfo.hasGoogleAuthPlugin ? "Registered" : "Not found"} highlight={devInfo.hasGoogleAuthPlugin ? "text-accent" : "text-error"} />
+          <DevRow label="Config has plugins" value={String(!!devInfo.configHasPlugins)} />
+          <DevRow label="Config plugin keys" value={devInfo.configPluginKeys || "(none)"} />
           <DevRow label="Config has GoogleAuth" value={String(!!devInfo.configHasGoogleAuth)} highlight={devInfo.configHasGoogleAuth ? "text-accent" : "text-error"} />
           <DevRow label="clientId present" value={String(!!devInfo.clientIdInConfig)} highlight={devInfo.clientIdInConfig ? "text-accent" : "text-amber-400"} />
           <DevRow label="clientId suffix" value={devInfo.clientIdSuffix || "(empty)"} />
