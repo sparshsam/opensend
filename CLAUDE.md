@@ -7,8 +7,12 @@ Contact: **sparshsam@gmail.com**
 GitHub: **https://github.com/sparshsam/opensend**
 
 ## Current Release
-**v0.9.4 — Android Debug Build** (tag `v0.9.4`, commit `db8ce81`)
-Deployed and live on `send.kovina.org`. APK at `C:\Users\spars\Desktop\OpenSend-v0.9.4-debug.apk`.
+**v0.9.5 — Android Debug Build** (tag pending, commit `7a7f41b`)
+Deployed and live on `send.kovina.org`. APK at `C:\Users\spars\Desktop\OpenSend-v0.9.5-debug.apk`.
+
+## Remaining Manual Config
+- **Supabase Auth settings** must include `opensend://auth/callback` as an allowed redirect URL for the native deep-link flow to work.
+- **Google Cloud Console** Web OAuth client ID is already configured in the original shared OAuth client. No changes needed.
 
 ## All Versions Built This Session
 
@@ -24,9 +28,38 @@ Deployed and live on `send.kovina.org`. APK at `C:\Users\spars\Desktop\OpenSend-
 | **v0.9.2** | Diagnostics Copy Button | `0928b18` |
 | **v0.9.3** | is_favorite migration + RLS audit | `4bc79c2` |
 | **v0.9.4** | Android Debug Build + API fetch fix + CORS | `db8ce81` |
-| **v0.9.5** | **Icon Refresh + APK API Routing + Native Google Sign-In + Diagnostics Cleanup** — new app icon, adaptive icon XML at viewport sizes, native URL resolution, native Google auth via @capacitor/browser, white screen fix, diagnostics with separate copy buttons, receiver paste button | `151de9e` |
+| **v0.9.5** | Multiple iterations across 18 commits — icon tuning, adaptive icon XML (vector foreground, viewport sizing), APK API routing fix (native URL resolution), @capacitor/browser Chrome Custom Tab auth flow, loading shell for white flash, diagnostics with auth stage tracking, PWA dismissal fix, receiver paste button, npm ci fix (removed incompatible plugin + overrides) | `7a7f41b` |
 
 All versions pushed to GitHub `main`.
+
+## Current Status — v0.9.5
+
+### What works
+- **APK API routing:** Relative `/api/` paths resolve to `https://send.kovina.org/` on native via `isNativePlatform()` detection
+- **File transfers:** Pair code generation, P2P (WebRTC) and Cloud transfers confirmed working on APK
+- **Loading shell:** Inline spinner on `#1a0422` bg + in-body style prevents white flash
+- **Diagnostics:** Dev section shows origin, protocol, native platform, API URL, Browser plugin status, auth stage tracking, Supabase session status
+- **PWA install prompt:** Dismissal persisted in localStorage
+- **Adaptive icon:** Vector upload arrow on solid `#bc3fde` background (centered at scale 0.20)
+- **Bottom nav:** Light mode override includes `bg-bg-base/95`
+- **Deep links:** `opensend://auth/callback` intent filter configured in AndroidManifest
+- **CI:** `npm ci` works without peer dep overrides
+
+### Blocked — Native Google sign-in
+- **Goal:** User taps "Sign in with Google" in APK → Chrome Custom Tab opens → Google sign-in completes → deep link returns → Supabase session created
+- **State:** Code is in place (`native-google-auth.ts` with Browser-based flow, auth stage tracking, manifest intent filter) but **not tested** — user hasn't confirmed whether the Chrome Custom Tab opens and the deep link returns
+- **Remaining unknowns:**
+  1. Does `Browser.open()` launch the Chrome Custom Tab inside the app?
+  2. Does the `appUrlOpen` event fire after Google redirects to `opensend://auth/callback`?
+  3. Does `exchangeCodeForSession()` create a valid Supabase session?
+  4. Is the `opensend://auth/callback` URL properly added to Supabase Auth allowed redirect URLs?
+
+### What needs debugging (next session)
+1. Test the Browser-based auth flow on the APK
+2. Check logcat for `[auth]` stage logs to see where it stops
+3. Verify Supabase Auth settings include `opensend://auth/callback`
+4. If `appUrlOpen` doesn't fire, investigate Android deep link routing
+5. Icon still reported as off-center — adjust translateY in `ic_launcher_foreground.xml` if needed
 
 ## Key Facts
 

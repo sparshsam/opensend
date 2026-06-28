@@ -53,7 +53,24 @@ OpenSend — Free, ad-free, open-source file sharing. Direct device-to-device tr
 | v0.9.2 | Diagnostics copy button |
 | v0.9.3 | is_favorite migration + RLS audit |
 | v0.9.4 | **Android Debug Build** — API fetch, CORS, padding, build marker |
-| v0.9.5 | **Icon Refresh** — new app icon, all PWA/Android/iOS/social/favicon assets regenerated via `scripts/generate-icons.js` (local only, not committed) |
+| v0.9.5 | **Icon Refresh + APK Routing + Auth + Diagnostics** — new icon via `scripts/generate-icons.js`, adaptive icon vector foreground, `isNativePlatform()` URL resolution, @capacitor/browser Chrome Custom Tab auth flow, loading shell for white flash, auth stage diagnostics, PWA dismissal, receiver paste button, removed incompatible google-auth plugin, cleaned npm overrides |
+
+## Current Blocker — Native Google Sign-In
+
+The @codetrix-studio/capacitor-google-auth plugin is incompatible with Capacitor 8 ("plugin not implemented on android"). The current approach uses @capacitor/browser Chrome Custom Tab:
+1. `supabase.auth.signInWithOAuth({ skipBrowserRedirect: true })` → auth URL
+2. `Browser.open({ url })` → in-app Chrome Custom Tab
+3. `App.addListener("appUrlOpen")` → catches `opensend://auth/callback` deep link
+4. `supabase.auth.exchangeCodeForSession(code)` → Supabase session
+5. `Browser.close()`
+
+**Not yet tested** on actual APK. Key unknowns:
+- Does `Browser.open()` actually work in Capacitor 8 WebView?
+- Does the `appUrlOpen` event fire for `opensend://` deep links?
+- Is `opensend://auth/callback` properly added to Supabase Auth redirect URLs?
+- Does `exchangeCodeForSession()` complete the PKCE flow?
+
+Diagnostics page shows auth stages (`creating-auth-url`, `browser-open`, `app-url-open-received`, `exchanging-code`, `session-exchange-success`) to pinpoint where it breaks. Check logcat for `[auth]` tags.
 
 ## Architecture
 
