@@ -32,6 +32,7 @@
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
+    "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@supabase/ssr": "^0.6.0",
     "@supabase/supabase-js": "^2.107.0",

@@ -21,6 +21,9 @@ const config: CapacitorConfig = {
       resize: 'body',
       style: 'DARK',
     },
+    GoogleAuth: {
+      clientId: '', // ← Set your Web OAuth client ID here (e.g. "xxxxx.apps.googleusercontent.com")
+    },
   },
 };
 

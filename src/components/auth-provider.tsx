@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { isNativeAuthAvailable, signInWithNativeGoogle } from "@/lib/native-google-auth";
+import { isNativeAuthAvailable, isNativeAuthConfigured, nativeGoogleSignIn, nativeGoogleSignOut } from "@/lib/native-google-auth";
 
 interface AuthContext {
   user: User | null;
@@ -38,20 +38,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async () => {
-    if (isNativeAuthAvailable()) {
-      // ── Native Android: Chrome Custom Tab in-app auth ──
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: "opensend://auth/callback",
-          skipBrowserRedirect: true,
-        },
-      });
-      if (error) throw error;
-      if (!data?.url) throw new Error("Failed to get auth URL");
-      await signInWithNativeGoogle(supabase, data.url);
+    if (isNativeAuthConfigured()) {
+      // ── Native Android: phone account picker → idToken → Supabase ──
+      await nativeGoogleSignIn(supabase);
+    } else if (isNativeAuthAvailable()) {
+      // ── Native app, plugin not configured yet — throw helpful error ──
+      throw new Error(
+        "Native Google sign-in needs one-time setup. " +
+        "See the Setup Notes in src/lib/native-google-auth.ts"
+      );
     } else {
-      // ── Web: standard popup / redirect ──
+      // ── Web / PWA: standard popup / redirect ──
       await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -62,7 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    if (isNativeAuthConfigured()) {
+      await nativeGoogleSignOut(supabase);
+    } else {
+      await supabase.auth.signOut();
+    }
   };
 
   return (

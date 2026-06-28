@@ -7,6 +7,7 @@ import { getGuestDevice } from "@/lib/guest-device";
 import { Activity, WifiOff, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BUILD_COMMIT, BUILD_TIME, isNativePlatform, resolveApiUrlForDisplay } from "@/lib/api-fetch";
+import { isNativeAuthAvailable, isNativeAuthConfigured } from "@/lib/native-google-auth";
 
 export default function DiagnosticsPage() {
   const { user } = useAuth();
@@ -24,24 +25,21 @@ export default function DiagnosticsPage() {
   // ── Dev info (always computed) ──
   const devInfo = {
     origin: typeof window !== "undefined" ? window.location.origin : "—",
-    hostname: typeof window !== "undefined" ? window.location.hostname : "—",
     protocol: typeof window !== "undefined" ? window.location.protocol : "—",
     nativePlatform: typeof window !== "undefined" ? isNativePlatform() : false,
     hasCapacitor: typeof window !== "undefined" && "Capacitor" in window,
     apiSessionUrl: typeof window !== "undefined" ? resolveApiUrlForDisplay("/api/guest/sessions") : "—",
+    nativeAuthAvailable: typeof window !== "undefined" ? isNativeAuthAvailable() : false,
+    nativeAuthConfigured: typeof window !== "undefined" ? isNativeAuthConfigured() : false,
+    hasSupabaseSession: !!user,
+    deepLinkRegistered: typeof window !== "undefined" && "Capacitor" in window && !!((window as any).Capacitor?.isNativePlatform?.() === true),
     deviceId,
-    deviceBrowser,
     screenSize: typeof screen !== "undefined" ? `${screen.width}×${screen.height}` : "—",
     language: typeof navigator !== "undefined" ? navigator.language : "—",
     userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "—",
     connectionType: typeof navigator !== "undefined" && "connection" in navigator
       ? ((navigator as any).connection?.effectiveType || "unknown") : "unknown",
     isOnline: typeof navigator !== "undefined" ? navigator.onLine : "—",
-    reducedMotion: typeof window !== "undefined" && "matchMedia" in window
-      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches : "—",
-    deviceMemory: typeof navigator !== "undefined" ? (navigator as any).deviceMemory || "—" : "—",
-    hardwareConcurrency: typeof navigator !== "undefined" ? navigator.hardwareConcurrency || "—" : "—",
-    buildCommit: BUILD_COMMIT,
     buildTime: BUILD_TIME,
   };
 
@@ -77,22 +75,21 @@ export default function DiagnosticsPage() {
   const buildDevText = () => [
     "=== OpenSend Dev Tools ===",
     `Device ID: ${devInfo.deviceId}`,
-    `Browser: ${devInfo.deviceBrowser}`,
-    `User Agent: ${devInfo.userAgent}`,
-    `Screen: ${devInfo.screenSize}`,
-    `Language: ${devInfo.language}`,
     `Origin: ${devInfo.origin}`,
-    `Hostname: ${devInfo.hostname}`,
     `Protocol: ${devInfo.protocol}`,
     `Native platform: ${devInfo.nativePlatform}`,
     `Capacitor detected: ${devInfo.hasCapacitor}`,
+    `Deep-link listener: ${devInfo.deepLinkRegistered}`,
     `API session URL: ${devInfo.apiSessionUrl}`,
+    `Native Google plugin available: ${devInfo.nativeAuthAvailable}`,
+    `Native Google plugin configured: ${devInfo.nativeAuthConfigured}`,
+    `Supabase session active: ${devInfo.hasSupabaseSession}`,
+    `Screen: ${devInfo.screenSize}`,
+    `Language: ${devInfo.language}`,
     `Connection: ${devInfo.connectionType}`,
     `Online: ${devInfo.isOnline}`,
-    `Reduced motion: ${devInfo.reducedMotion}`,
-    `Device memory: ${devInfo.deviceMemory}`,
-    `CPU cores: ${devInfo.hardwareConcurrency}`,
-    `Build: ${devInfo.buildCommit} (${devInfo.buildTime})`,
+    `UA: ${devInfo.userAgent}`,
+    `Build: ${devInfo.buildTime}`,
     "============================",
   ].join("\n");
 
@@ -152,22 +149,21 @@ export default function DiagnosticsPage() {
         </div>
         <div className="space-y-2 font-mono text-[12px]">
           <DevRow label="Device ID" value={devInfo.deviceId} />
-          <DevRow label="Browser" value={devInfo.deviceBrowser} />
-          <DevRow label="User Agent" value={devInfo.userAgent} mono={false} />
+          <DevRow label="Origin" value={devInfo.origin} />
+          <DevRow label="Protocol" value={devInfo.protocol} />
+          <DevRow label="Native platform" value={String(devInfo.nativePlatform)} highlight={devInfo.nativePlatform ? "text-accent" : ""} />
+          <DevRow label="Capacitor detected" value={String(devInfo.hasCapacitor)} highlight={devInfo.hasCapacitor ? "text-accent" : ""} />
+          <DevRow label="Deep-link listener" value={String(devInfo.deepLinkRegistered)} highlight={devInfo.deepLinkRegistered ? "text-accent" : ""} />
+          <DevRow label="API session URL" value={devInfo.apiSessionUrl} mono={false} />
+          <DevRow label="Native Google plugin" value={devInfo.nativeAuthAvailable ? "Available" : "Not available"} highlight={devInfo.nativeAuthAvailable ? "text-accent" : "text-error"} />
+          <DevRow label="Native Google configured" value={String(devInfo.nativeAuthConfigured)} highlight={devInfo.nativeAuthConfigured ? "text-accent" : "text-amber-400"} />
+          <DevRow label="Supabase session active" value={String(devInfo.hasSupabaseSession)} highlight={devInfo.hasSupabaseSession ? "text-accent" : ""} />
           <DevRow label="Screen" value={devInfo.screenSize} />
           <DevRow label="Language" value={devInfo.language} />
-          <DevRow label="Origin" value={devInfo.origin} />
-          <DevRow label="Hostname" value={devInfo.hostname} />
-          <DevRow label="Protocol" value={devInfo.protocol} />
-          <DevRow label="Native platform" value={String(devInfo.nativePlatform)} />
-          <DevRow label="Capacitor" value={String(devInfo.hasCapacitor)} />
-          <DevRow label="API session URL" value={devInfo.apiSessionUrl} mono={false} />
           <DevRow label="Connection" value={devInfo.connectionType} />
           <DevRow label="Online" value={String(devInfo.isOnline)} highlight={!isOnline ? "text-error" : "text-accent"} />
-          <DevRow label="Reduced motion" value={String(devInfo.reducedMotion)} />
-          <DevRow label="Device memory" value={String(devInfo.deviceMemory)} />
-          <DevRow label="CPU cores" value={String(devInfo.hardwareConcurrency)} />
-          <DevRow label="Build" value={`${devInfo.buildCommit} (${devInfo.buildTime.slice(0, 10)})`} />
+          <DevRow label="UA" value={devInfo.userAgent} mono={false} />
+          <DevRow label="Build" value={devInfo.buildTime} />
         </div>
         <Button variant="secondary" size="sm" className="w-full mt-2 bg-amber-950/20" onClick={copyDev}>
           {devCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}

@@ -4,14 +4,15 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Arrow translated from 768x768 SVG space to 108x108 Android viewport
-         Original path center: ~384,384. Map to 54,54 with safe margin.
-         Scale: 108/768 = 0.140625 -->
+    <!-- Upload arrow centered in 108x108 adaptive icon viewport.
+         Original SVG: 768x768, path center ~386,384.
+         Scale 0.20 → mark fills ~56dp (within 72dp safe zone).
+         Translation centers the mark in the 108 viewport. -->
     <group
-        android:translateX="18"
-        android:translateY="18"
-        android:scaleX="0.14"
-        android:scaleY="0.14">
+        android:translateX="-23"
+        android:translateY="-23"
+        android:scaleX="0.20"
+        android:scaleY="0.20">
         <path
             android:fillColor="#ffffff"
             android:pathData="M537.17,258.54 C537.22,258.51 537.27,258.48 537.32,258.45 L387.65,515.18 C386.80,516.64 385.25,517.51 383.60,517.51 C383.30,517.51 383.01,517.48 382.71,517.42 C380.75,517.04 379.25,515.47 378.96,513.50 L356.96,364.11 Z M235.73,250.51 C233.74,250.51 231.97,251.76 231.30,253.63 C230.64,255.50 231.23,257.59 232.78,258.84 L352.64,355.77 L532.34,250.51 Z M235.73,250.51"/>
