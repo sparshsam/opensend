@@ -24,7 +24,7 @@ Deployed and live on `send.kovina.org`. APK at `C:\Users\spars\Desktop\OpenSend-
 | **v0.9.2** | Diagnostics Copy Button | `0928b18` |
 | **v0.9.3** | is_favorite migration + RLS audit | `4bc79c2` |
 | **v0.9.4** | Android Debug Build + API fetch fix + CORS | `db8ce81` |
-| **v0.9.5** | **Icon Refresh + APK API Routing + Diagnostics Dev Tools + PWA Dismissal** — new app icon, adaptive icon XML at viewport sizes, native URL resolution, diagnostics dev section, PWA prompt respects dismissal | `f937238` |
+| **v0.9.5** | **Icon Refresh + APK API Routing + Native Google Sign-In + Diagnostics Cleanup** — new app icon, adaptive icon XML at viewport sizes, native URL resolution, native Google auth via @capacitor/browser, white screen fix, diagnostics with separate copy buttons, receiver paste button | `151de9e` |
 
 All versions pushed to GitHub `main`.
 
