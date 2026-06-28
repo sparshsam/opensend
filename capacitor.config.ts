@@ -24,9 +24,6 @@ const config: CapacitorConfig = {
       resize: 'body',
       style: 'DARK',
     },
-    GoogleAuth: {
-      clientId: '932918847607-dpo001dflibtevemp2lk13usrh2fq7og.apps.googleusercontent.com',
-    },
   },
 };
 

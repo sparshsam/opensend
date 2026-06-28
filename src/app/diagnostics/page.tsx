@@ -7,7 +7,7 @@ import { getGuestDevice } from "@/lib/guest-device";
 import { Activity, WifiOff, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BUILD_COMMIT, BUILD_TIME, isNativePlatform, resolveApiUrlForDisplay } from "@/lib/api-fetch";
-import { getNativeAuthDiag } from "@/lib/native-google-auth";
+import { getNativeAuthDiag, getAuthStage } from "@/lib/native-google-auth";
 import { getAuthDiag } from "@/lib/auth-diag";
 
 export default function DiagnosticsPage() {
@@ -41,6 +41,7 @@ export default function DiagnosticsPage() {
       ? ((navigator as any).connection?.effectiveType || "unknown") : "unknown",
     isOnline: typeof navigator !== "undefined" ? navigator.onLine : "—",
     buildTime: BUILD_TIME,
+    authStage: typeof window !== "undefined" ? getAuthStage() : "—",
     ...getAuthDiag(),
   };
 
@@ -82,12 +83,8 @@ export default function DiagnosticsPage() {
     `Capacitor detected: ${devInfo.hasCapacitor}`,
     `Deep-link listener: ${devInfo.deepLinkRegistered}`,
     `API session URL: ${devInfo.apiSessionUrl}`,
-    `GoogleAuth plugin: ${devInfo.hasGoogleAuthPlugin}`,
-    `Config plugin keys: ${devInfo.configPluginKeys}`,
-    `Config has GoogleAuth: ${devInfo.configHasGoogleAuth}`,
-    `clientId present: ${devInfo.clientIdInConfig}`,
-    `clientId suffix: ${devInfo.clientIdSuffix}`,
-    `Raw config: ${(devInfo as any).rawConfigJson?.slice(0, 200)}`,
+    `Browser plugin: ${devInfo.hasBrowserPlugin}`,
+    `Auth stage: ${devInfo.authStage}`,
     `Supabase session: ${!!devInfo.hasSupabaseSession}`,
     `Sign-in clicked: ${devInfo.signInClicked || 0}`,
     `Native attempted: ${!!devInfo.nativeAttempted}`,
@@ -164,12 +161,9 @@ export default function DiagnosticsPage() {
           <DevRow label="Capacitor detected" value={String(devInfo.hasCapacitor)} highlight={devInfo.hasCapacitor ? "text-accent" : ""} />
           <DevRow label="Deep-link listener" value={String(devInfo.deepLinkRegistered)} highlight={devInfo.deepLinkRegistered ? "text-accent" : ""} />
           <DevRow label="API session URL" value={devInfo.apiSessionUrl} mono={false} />
-          <DevRow label="GoogleAuth plugin" value={devInfo.hasGoogleAuthPlugin ? "Registered" : "Not found"} highlight={devInfo.hasGoogleAuthPlugin ? "text-accent" : "text-error"} />
-          <DevRow label="Config has plugins" value={String(!!devInfo.configHasPlugins)} />
+          <DevRow label="Browser plugin" value={devInfo.hasBrowserPlugin ? "Available" : "Not found"} highlight={devInfo.hasBrowserPlugin ? "text-accent" : "text-error"} />
           <DevRow label="Config plugin keys" value={devInfo.configPluginKeys || "(none)"} />
-          <DevRow label="Config has GoogleAuth" value={String(!!devInfo.configHasGoogleAuth)} highlight={devInfo.configHasGoogleAuth ? "text-accent" : "text-error"} />
-          <DevRow label="clientId present" value={String(!!devInfo.clientIdInConfig)} highlight={devInfo.clientIdInConfig ? "text-accent" : "text-amber-400"} />
-          <DevRow label="clientId suffix" value={devInfo.clientIdSuffix || "(empty)"} />
+          <DevRow label="Auth stage" value={devInfo.authStage || "—"} highlight={devInfo.authStage === "session-exchange-success" ? "text-accent" : ""} />
           <DevRow label="Supabase session" value={String(!!devInfo.hasSupabaseSession)} highlight={devInfo.hasSupabaseSession ? "text-accent" : ""} />
           <DevRow label="Sign-in clicked" value={String(devInfo.signInClicked || 0)} />
           <DevRow label="Native attempted" value={String(!!devInfo.nativeAttempted)} />

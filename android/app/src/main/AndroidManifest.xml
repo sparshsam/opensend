@@ -22,12 +22,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep link: opensend:// -->
+            <!-- Deep link: opensend:// (generic) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="opensend" />
+            </intent-filter>
+
+            <!-- Deep link: opensend://auth/callback (OAuth callback) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="opensend" android:host="auth" android:pathPrefix="/callback" />
             </intent-filter>
 
             <!-- Deep link: https://send.kovina.org -->

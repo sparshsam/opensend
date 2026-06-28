@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { isNativeAuthAvailable, isNativeAuthConfigured, nativeGoogleSignIn, nativeGoogleSignOut } from "@/lib/native-google-auth";
+import { nativeGoogleSignIn, resetAuthStage } from "@/lib/native-google-auth";
 import { trackSignInClicked, trackNativeAttempted, trackAuthError } from "@/lib/auth-diag";
 
 interface AuthContext {
@@ -41,9 +41,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async () => {
     console.log("[auth] signIn() called");
     trackSignInClicked();
-    if (isNativeAuthConfigured()) {
-      // ── Native Android: phone account picker → idToken → Supabase ──
-      console.log("[auth] native configured — calling nativeGoogleSignIn");
+    resetAuthStage();
+    const isCapacitor = typeof (window as any).Capacitor?.Plugins?.Browser !== "undefined";
+    if (isCapacitor) {
+      // ── Native Android: Chrome Custom Tab → deep link → PKCE exchange ──
+      console.log("[auth] native — calling nativeGoogleSignIn");
       trackNativeAttempted();
       try {
         await nativeGoogleSignIn(supabase);
@@ -53,15 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         trackAuthError(err.message || "Native sign-in error");
         throw err;
       }
-    } else if (isNativeAuthAvailable()) {
-      console.log("[auth] native available but NOT configured");
-      trackNativeAttempted();
-      const msg = "Native Google sign-in needs one-time setup. See Setup Notes in native-google-auth.ts";
-      trackAuthError(msg);
-      throw new Error(msg);
     } else {
       // ── Web / PWA: standard popup / redirect ──
-      console.log("[auth] web fallback — redirect OAuth");
+      console.log("[auth] web — redirect OAuth");
       await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -72,11 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    if (isNativeAuthConfigured()) {
-      await nativeGoogleSignOut(supabase);
-    } else {
-      await supabase.auth.signOut();
-    }
+    await supabase.auth.signOut();
   };
 
   return (

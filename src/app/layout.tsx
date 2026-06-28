@@ -91,6 +91,8 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* FOUC/white-flash prevention: set body background before any CSS loads */}
+        <style>{`html,body{background-color:#1a0422!important;margin:0;padding:0}`}</style>
         {/* Font preload for faster startup */}
         <link
           rel="preload"
@@ -110,6 +112,39 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" href="/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" />
       </head>
       <body className="min-h-screen bg-bg-base antialiased pb-safe">
+        {/* Loading shell — hidden by React once it mounts */}
+        <div id="app-loading-shell" style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          backgroundColor: "#1a0422",
+          transition: "opacity 0.3s ease",
+        }}>
+          <div style={{
+            width: 32, height: 32,
+            border: "3px solid rgba(188,63,222,0.2)",
+            borderTopColor: "#bc3fde",
+            borderRadius: "50%",
+            animation: "os-spin 0.8s linear infinite",
+          }} />
+          <style>{`@keyframes os-spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+        {/* Script to remove loading shell once React takes over */}
+        <script dangerouslySetInnerHTML={{
+          __html: `document.addEventListener("DOMContentLoaded",()=>{
+            const t=setInterval(()=>{
+              const el=document.getElementById("app-loading-shell");
+              if(el&&document.querySelector("#main-content>*")){
+                el.style.opacity="0";
+                setTimeout(()=>el.remove(),300);
+                clearInterval(t);
+              }
+            },100);
+            setTimeout(()=>{
+              const el=document.getElementById("app-loading-shell");
+              if(el){el.style.opacity="0";setTimeout(()=>el.remove(),300);}
+            },5000);
+          })`,
+        }} />
         <AuthProvider>
           <ThemeProvider>
             <DeviceProvider>
