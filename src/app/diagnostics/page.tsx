@@ -6,7 +6,7 @@ import { useDevice } from "@/components/device-provider";
 import { getGuestDevice } from "@/lib/guest-device";
 import { Monitor, Smartphone, Wifi, WifiOff, Activity, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BUILD_COMMIT, BUILD_TIME } from "@/lib/api-fetch";
+import { BUILD_COMMIT, BUILD_TIME, isNativePlatform, resolveApiUrlForDisplay } from "@/lib/api-fetch";
 
 export default function DiagnosticsPage() {
   const { user } = useAuth();
@@ -15,6 +15,38 @@ export default function DiagnosticsPage() {
   const [webRTCStatus, setWebRTCStatus] = useState("checking...");
   const [iceState, setIceState] = useState("—");
   const [copied, setCopied] = useState(false);
+  const [showDevTools, setShowDevTools] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  const devInfo = {
+    origin: typeof window !== "undefined" ? window.location.origin : "—",
+    hostname: typeof window !== "undefined" ? window.location.hostname : "—",
+    protocol: typeof window !== "undefined" ? window.location.protocol : "—",
+    nativePlatform: typeof window !== "undefined" ? isNativePlatform() : false,
+    hasCapacitor: typeof window !== "undefined" && "Capacitor" in window,
+    apiSessionUrl: typeof window !== "undefined" ? resolveApiUrlForDisplay("/api/guest/sessions") : "—",
+    buildCommit: BUILD_COMMIT,
+    buildTime: BUILD_TIME,
+    connectionType: typeof navigator !== "undefined" && "connection" in navigator
+      ? ((navigator as any).connection?.effectiveType || "unknown") : "unknown",
+    onlineStatus: typeof navigator !== "undefined" ? navigator.onLine : "—",
+    reducedMotion: typeof window !== "undefined" && "matchMedia" in window
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches : "—",
+    deviceMemory: typeof navigator !== "undefined" ? (navigator as any).deviceMemory || "—" : "—",
+    hardwareConcurrency: typeof navigator !== "undefined" ? navigator.hardwareConcurrency || "—" : "—",
+  };
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
 
   const copyDiagnostics = async () => {
     const browserDiag = {
@@ -190,10 +222,46 @@ export default function DiagnosticsPage() {
         {copied ? "Copied" : "Copy diagnostics"}
       </Button>
 
+      {/* Dev Tools — collapsible */}
+      <div className="border-t border-border-default pt-4">
+        <button
+          onClick={() => setShowDevTools(!showDevTools)}
+          className="text-xs text-text-muted hover:text-text-primary transition cursor-pointer"
+        >
+          {showDevTools ? "▾" : "▸"} Dev Tools
+        </button>
+        {showDevTools && (
+          <div className="mt-3 space-y-2 rounded-lg border border-amber-500/20 bg-amber-950/10 p-3 font-mono text-[11px] text-text-muted">
+            <Row label="Origin" value={devInfo.origin} />
+            <Row label="Hostname" value={devInfo.hostname} />
+            <Row label="Protocol" value={devInfo.protocol} />
+            <Row label="Native platform" value={String(devInfo.nativePlatform)} />
+            <Row label="Capacitor detected" value={String(devInfo.hasCapacitor)} />
+            <Row label="API session URL" value={devInfo.apiSessionUrl} />
+            <Row label="Connection" value={devInfo.connectionType} />
+            <Row label="Online" value={String(devInfo.onlineStatus)} highlight={!isOnline ? "text-error" : "text-accent"} />
+            <Row label="Reduced motion" value={String(devInfo.reducedMotion)} />
+            <Row label="Device memory" value={String(devInfo.deviceMemory)} />
+            <Row label="CPU cores" value={String(devInfo.hardwareConcurrency)} />
+            <Row label="Build" value={`${devInfo.buildCommit} (${devInfo.buildTime})`} />
+          </div>
+        )}
+      </div>
+
       {/* Build info */}
       <div className="text-center text-[10px] text-text-muted/50 pt-2 pb-0">
         APK build {BUILD_COMMIT} · {BUILD_TIME.slice(0, 10)}
       </div>
+    </div>
+  );
+}
+
+/** Small key-value row for the dev tools panel */
+function Row({ label, value, highlight }: { label: string; value: string; highlight?: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-text-muted/70 shrink-0">{label}</span>
+      <span className={`text-right break-all max-w-[60%] ${highlight || "text-text-primary"}`}>{value}</span>
     </div>
   );
 }

@@ -4,17 +4,22 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DownloadCloud, X } from "lucide-react";
 
+const DISMISSED_KEY = "opensend_pwa_dismissed";
+
 export function PwaInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
-    // Check if already standalone
+    // Already installed — never prompt
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setInstalled(true);
       return;
     }
+
+    // User actively dismissed a previous prompt — skip
+    if (localStorage.getItem(DISMISSED_KEY) === "1") return;
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -44,12 +49,17 @@ export function PwaInstallPrompt() {
     setShowPrompt(false);
   };
 
+  const handleDismiss = () => {
+    localStorage.setItem(DISMISSED_KEY, "1");
+    setShowPrompt(false);
+  };
+
   if (installed || !showPrompt) return null;
 
   return (
     <div className="fixed bottom-20 left-4 right-4 sm:left-auto sm:right-4 sm:bottom-4 sm:w-80 z-50 rounded-2xl p-4 bg-bg-surface border border-border-default shadow-lg">
       <button
-        onClick={() => setShowPrompt(false)}
+        onClick={handleDismiss}
         className="absolute top-3 right-3 text-text-muted hover:text-text-primary cursor-pointer"
         aria-label="Dismiss"
       >
