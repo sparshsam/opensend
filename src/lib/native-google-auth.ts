@@ -12,6 +12,7 @@
 
 import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { trackIdTokenReceived, trackAuthError } from "@/lib/auth-diag";
 
 // ── Detection ──
 
@@ -58,8 +59,12 @@ export async function nativeGoogleSignIn(supabase: SupabaseClient): Promise<void
   const user = await GoogleAuth.signIn();
 
   if (!user.authentication?.idToken) {
-    throw new Error("Google sign-in did not return an ID token. Try again.");
+    const msg = "Google sign-in did not return an ID token. Try again.";
+    trackAuthError(msg);
+    throw new Error(msg);
   }
+
+  trackIdTokenReceived();
 
   // Step 2: Exchange the idToken with Supabase
   const { error } = await supabase.auth.signInWithIdToken({
@@ -67,7 +72,10 @@ export async function nativeGoogleSignIn(supabase: SupabaseClient): Promise<void
     token: user.authentication.idToken,
   });
 
-  if (error) throw error;
+  if (error) {
+    trackAuthError(error.message);
+    throw error;
+  }
 
   // (No need to call GoogleAuth.signOut — the plugin keeps the session alive.)
 }

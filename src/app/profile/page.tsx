@@ -47,6 +47,8 @@ export default function ProfilePage() {
   const [copied, setCopied] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
   const [tokenName, setTokenName] = useState("");
+  const [signInLoading, setSignInLoading] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [mcpEndpoint, setMcpEndpoint] = useState("");
   // Device management
@@ -213,9 +215,22 @@ export default function ProfilePage() {
               <div className="flex justify-between"><span>Sync</span><span>Not available</span></div>
             </div>
           </div>
-          <Button variant="primary" size="lg" onClick={signIn}>
-            Sign in with Google
+          <Button variant="primary" size="lg" onClick={async () => {
+            setSignInError(null);
+            setSignInLoading(true);
+            try {
+              await signIn();
+            } catch (err: any) {
+              setSignInError(err.message || "Sign-in failed");
+            } finally {
+              setSignInLoading(false);
+            }
+          }} disabled={signInLoading}>
+            {signInLoading ? "Signing in..." : "Sign in with Google"}
           </Button>
+          {signInError && (
+            <p className="text-sm text-error max-w-xs mx-auto">{signInError}</p>
+          )}
           <p className="text-xs text-text-muted">
             Guest transfers work without signing in. Signing in enables device sync and history.
           </p>

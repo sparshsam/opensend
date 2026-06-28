@@ -10,7 +10,7 @@
          Translation centers the mark in the 108 viewport. -->
     <group
         android:translateX="-23"
-        android:translateY="-23"
+        android:translateY="-28"
         android:scaleX="0.20"
         android:scaleY="0.20">
         <path

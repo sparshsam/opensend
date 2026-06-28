@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { isNativeAuthAvailable, isNativeAuthConfigured, nativeGoogleSignIn, nativeGoogleSignOut } from "@/lib/native-google-auth";
+import { trackSignInClicked, trackNativeAttempted, trackAuthError } from "@/lib/auth-diag";
 
 interface AuthContext {
   user: User | null;
@@ -38,15 +39,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async () => {
+    trackSignInClicked();
     if (isNativeAuthConfigured()) {
       // ── Native Android: phone account picker → idToken → Supabase ──
-      await nativeGoogleSignIn(supabase);
+      trackNativeAttempted();
+      try {
+        await nativeGoogleSignIn(supabase);
+      } catch (err: any) {
+        trackAuthError(err.message || "Native sign-in error");
+        throw err;
+      }
     } else if (isNativeAuthAvailable()) {
-      // ── Native app, plugin not configured yet — throw helpful error ──
-      throw new Error(
-        "Native Google sign-in needs one-time setup. " +
-        "See the Setup Notes in src/lib/native-google-auth.ts"
-      );
+      trackNativeAttempted();
+      const msg = "Native Google sign-in needs one-time setup. See Setup Notes in native-google-auth.ts";
+      trackAuthError(msg);
+      throw new Error(msg);
     } else {
       // ── Web / PWA: standard popup / redirect ──
       await supabase.auth.signInWithOAuth({

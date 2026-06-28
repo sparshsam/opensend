@@ -104,7 +104,8 @@ body {
    ============================================================ */
 .light body,
 .light .bg-bg-base,
-.light .bg-bg-base\/90 {
+.light .bg-bg-base\/90,
+.light .bg-bg-base\/95 {
   background-color: #faf0ff !important;
 }
 .light .bg-bg-surface { background-color: #f5e6fa; }

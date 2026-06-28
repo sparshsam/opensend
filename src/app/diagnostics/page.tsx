@@ -8,6 +8,7 @@ import { Activity, WifiOff, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BUILD_COMMIT, BUILD_TIME, isNativePlatform, resolveApiUrlForDisplay } from "@/lib/api-fetch";
 import { isNativeAuthAvailable, isNativeAuthConfigured } from "@/lib/native-google-auth";
+import { getAuthDiag } from "@/lib/auth-diag";
 
 export default function DiagnosticsPage() {
   const { user } = useAuth();
@@ -41,6 +42,7 @@ export default function DiagnosticsPage() {
       ? ((navigator as any).connection?.effectiveType || "unknown") : "unknown",
     isOnline: typeof navigator !== "undefined" ? navigator.onLine : "—",
     buildTime: BUILD_TIME,
+    ...getAuthDiag(),
   };
 
   // ── Track online status ──
@@ -158,6 +160,10 @@ export default function DiagnosticsPage() {
           <DevRow label="Native Google plugin" value={devInfo.nativeAuthAvailable ? "Available" : "Not available"} highlight={devInfo.nativeAuthAvailable ? "text-accent" : "text-error"} />
           <DevRow label="Native Google configured" value={String(devInfo.nativeAuthConfigured)} highlight={devInfo.nativeAuthConfigured ? "text-accent" : "text-amber-400"} />
           <DevRow label="Supabase session active" value={String(devInfo.hasSupabaseSession)} highlight={devInfo.hasSupabaseSession ? "text-accent" : ""} />
+          <DevRow label="Sign-in clicked" value={String(devInfo.signInClicked || 0)} />
+          <DevRow label="Native attempted" value={String(!!devInfo.nativeAttempted)} />
+          <DevRow label="idToken received" value={String(!!devInfo.idTokenReceived)} />
+          {devInfo.lastAuthError && <DevRow label="Last auth error" value={devInfo.lastAuthError} highlight="text-error" />}
           <DevRow label="Screen" value={devInfo.screenSize} />
           <DevRow label="Language" value={devInfo.language} />
           <DevRow label="Connection" value={devInfo.connectionType} />
