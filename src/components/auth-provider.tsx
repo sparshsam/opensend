@@ -39,23 +39,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async () => {
+    console.log("[auth] signIn() called");
     trackSignInClicked();
     if (isNativeAuthConfigured()) {
       // ── Native Android: phone account picker → idToken → Supabase ──
+      console.log("[auth] native configured — calling nativeGoogleSignIn");
       trackNativeAttempted();
       try {
         await nativeGoogleSignIn(supabase);
+        console.log("[auth] nativeGoogleSignIn completed successfully");
       } catch (err: any) {
+        console.log("[auth] nativeGoogleSignIn failed:", err.message);
         trackAuthError(err.message || "Native sign-in error");
         throw err;
       }
     } else if (isNativeAuthAvailable()) {
+      console.log("[auth] native available but NOT configured");
       trackNativeAttempted();
       const msg = "Native Google sign-in needs one-time setup. See Setup Notes in native-google-auth.ts";
       trackAuthError(msg);
       throw new Error(msg);
     } else {
       // ── Web / PWA: standard popup / redirect ──
+      console.log("[auth] web fallback — redirect OAuth");
       await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {

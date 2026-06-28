@@ -7,7 +7,7 @@ import { getGuestDevice } from "@/lib/guest-device";
 import { Activity, WifiOff, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BUILD_COMMIT, BUILD_TIME, isNativePlatform, resolveApiUrlForDisplay } from "@/lib/api-fetch";
-import { isNativeAuthAvailable, isNativeAuthConfigured } from "@/lib/native-google-auth";
+import { getNativeAuthDiag } from "@/lib/native-google-auth";
 import { getAuthDiag } from "@/lib/auth-diag";
 
 export default function DiagnosticsPage() {
@@ -30,8 +30,7 @@ export default function DiagnosticsPage() {
     nativePlatform: typeof window !== "undefined" ? isNativePlatform() : false,
     hasCapacitor: typeof window !== "undefined" && "Capacitor" in window,
     apiSessionUrl: typeof window !== "undefined" ? resolveApiUrlForDisplay("/api/guest/sessions") : "—",
-    nativeAuthAvailable: typeof window !== "undefined" ? isNativeAuthAvailable() : false,
-    nativeAuthConfigured: typeof window !== "undefined" ? isNativeAuthConfigured() : false,
+    ...(typeof window !== "undefined" ? getNativeAuthDiag() : {}),
     hasSupabaseSession: !!user,
     deepLinkRegistered: typeof window !== "undefined" && "Capacitor" in window && !!((window as any).Capacitor?.isNativePlatform?.() === true),
     deviceId,
@@ -83,9 +82,15 @@ export default function DiagnosticsPage() {
     `Capacitor detected: ${devInfo.hasCapacitor}`,
     `Deep-link listener: ${devInfo.deepLinkRegistered}`,
     `API session URL: ${devInfo.apiSessionUrl}`,
-    `Native Google plugin available: ${devInfo.nativeAuthAvailable}`,
-    `Native Google plugin configured: ${devInfo.nativeAuthConfigured}`,
-    `Supabase session active: ${devInfo.hasSupabaseSession}`,
+    `GoogleAuth plugin: ${devInfo.hasGoogleAuthPlugin}`,
+    `Config has GoogleAuth: ${devInfo.configHasGoogleAuth}`,
+    `clientId present: ${devInfo.clientIdInConfig}`,
+    `clientId suffix: ${devInfo.clientIdSuffix}`,
+    `Supabase session: ${!!devInfo.hasSupabaseSession}`,
+    `Sign-in clicked: ${devInfo.signInClicked || 0}`,
+    `Native attempted: ${!!devInfo.nativeAttempted}`,
+    `idToken received: ${!!devInfo.idTokenReceived}`,
+    `Last auth error: ${devInfo.lastAuthError || "none"}`,
     `Screen: ${devInfo.screenSize}`,
     `Language: ${devInfo.language}`,
     `Connection: ${devInfo.connectionType}`,
@@ -157,9 +162,11 @@ export default function DiagnosticsPage() {
           <DevRow label="Capacitor detected" value={String(devInfo.hasCapacitor)} highlight={devInfo.hasCapacitor ? "text-accent" : ""} />
           <DevRow label="Deep-link listener" value={String(devInfo.deepLinkRegistered)} highlight={devInfo.deepLinkRegistered ? "text-accent" : ""} />
           <DevRow label="API session URL" value={devInfo.apiSessionUrl} mono={false} />
-          <DevRow label="Native Google plugin" value={devInfo.nativeAuthAvailable ? "Available" : "Not available"} highlight={devInfo.nativeAuthAvailable ? "text-accent" : "text-error"} />
-          <DevRow label="Native Google configured" value={String(devInfo.nativeAuthConfigured)} highlight={devInfo.nativeAuthConfigured ? "text-accent" : "text-amber-400"} />
-          <DevRow label="Supabase session active" value={String(devInfo.hasSupabaseSession)} highlight={devInfo.hasSupabaseSession ? "text-accent" : ""} />
+          <DevRow label="GoogleAuth plugin" value={devInfo.hasGoogleAuthPlugin ? "Registered" : "Not found"} highlight={devInfo.hasGoogleAuthPlugin ? "text-accent" : "text-error"} />
+          <DevRow label="Config has GoogleAuth" value={String(!!devInfo.configHasGoogleAuth)} highlight={devInfo.configHasGoogleAuth ? "text-accent" : "text-error"} />
+          <DevRow label="clientId present" value={String(!!devInfo.clientIdInConfig)} highlight={devInfo.clientIdInConfig ? "text-accent" : "text-amber-400"} />
+          <DevRow label="clientId suffix" value={devInfo.clientIdSuffix || "(empty)"} />
+          <DevRow label="Supabase session" value={String(!!devInfo.hasSupabaseSession)} highlight={devInfo.hasSupabaseSession ? "text-accent" : ""} />
           <DevRow label="Sign-in clicked" value={String(devInfo.signInClicked || 0)} />
           <DevRow label="Native attempted" value={String(!!devInfo.nativeAttempted)} />
           <DevRow label="idToken received" value={String(!!devInfo.idTokenReceived)} />

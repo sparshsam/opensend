@@ -16,12 +16,12 @@ import { trackIdTokenReceived, trackAuthError } from "@/lib/auth-diag";
 
 // ── Detection ──
 
-/** Whether the Capacitor Google Auth plugin is available (native Android only). */
+/** Whether the Capacitor environment is present (native Android). */
 export function isNativeAuthAvailable(): boolean {
   if (typeof window === "undefined") return false;
   if (typeof (window as any).Capacitor === "undefined") return false;
-  // The plugin registers itself; if the import resolved it's present.
-  return true;
+  // Plugin is registered at Cap.Plugins.GoogleAuth on native
+  return typeof (window as any).Capacitor?.Plugins?.GoogleAuth !== "undefined";
 }
 
 /** Whether the Capacitor Google Auth plugin is actually configured (clientId set). */
@@ -32,6 +32,32 @@ export function isNativeAuthConfigured(): boolean {
     return !!(cfg?.clientId);
   } catch {
     return false;
+  }
+}
+
+/** Read plugin config for diagnostics — returns raw values, never throws. */
+export function getNativeAuthDiag() {
+  try {
+    const cap = (window as any).Capacitor;
+    return {
+      hasCapacitor: typeof cap !== "undefined",
+      hasPlugins: typeof cap?.Plugins !== "undefined",
+      hasGoogleAuthPlugin: typeof cap?.Plugins?.GoogleAuth !== "undefined",
+      configHasGoogleAuth: typeof cap?.config?.plugins?.GoogleAuth !== "undefined",
+      clientIdInConfig: !!(cap?.config?.plugins?.GoogleAuth?.clientId),
+      clientIdSuffix: cap?.config?.plugins?.GoogleAuth?.clientId
+        ? "..." + cap.config.plugins.GoogleAuth.clientId.slice(-8)
+        : "(empty)",
+    };
+  } catch {
+    return {
+      hasCapacitor: false,
+      hasPlugins: false,
+      hasGoogleAuthPlugin: false,
+      configHasGoogleAuth: false,
+      clientIdInConfig: false,
+      clientIdSuffix: "(error)",
+    };
   }
 }
 
@@ -56,7 +82,9 @@ export async function nativeGoogleSignIn(supabase: SupabaseClient): Promise<void
   }
 
   // Step 1: Native account picker → idToken
+  console.log("[auth] calling GoogleAuth.signIn()...");
   const user = await GoogleAuth.signIn();
+  console.log("[auth] GoogleAuth.signIn() returned, idToken:", !!user.authentication?.idToken);
 
   if (!user.authentication?.idToken) {
     const msg = "Google sign-in did not return an ID token. Try again.";

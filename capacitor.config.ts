@@ -4,6 +4,9 @@ const config: CapacitorConfig = {
   appId: 'org.kovina.opensend',
   appName: 'OpenSend',
   webDir: 'out',
+  android: {
+    backgroundColor: '#1a0422',
+  },
   server: {
     androidScheme: 'https',
     cleartext: false,
