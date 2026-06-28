@@ -1,4 +1,4 @@
-# OpenSend v0.9.0 — CLAUDE.md
+# OpenSend v0.9.4 — CLAUDE.md
 
 ## Project
 Repository at `/home/spars/repos/opensend/`.  
@@ -7,8 +7,8 @@ Contact: **sparshsam@gmail.com**
 GitHub: **https://github.com/sparshsam/opensend**
 
 ## Current Release
-**v0.9.0 — Trusted Devices** (latest tag on `main`)
-⚠️ **Not yet deployed to production** — Vercel free-tier daily deploy limit (100/day) was hit during this session. Run `npx vercel --prod --yes` when limit resets (midnight UTC) or it auto-deploys from GitHub.
+**v0.9.4 — Android Debug Build** (tag `v0.9.4`, commit `db8ce81`)
+Deployed and live on `send.kovina.org`. APK at `C:\Users\spars\Desktop\OpenSend-v0.9.4-debug.apk`.
 
 ## All Versions Built This Session
 
@@ -20,6 +20,10 @@ GitHub: **https://github.com/sparshsam/opensend**
 | **v0.7.0** | Windows Application (Electron) | `81ecd66` |
 | **v0.8.0** | Security & Privacy | `dc34e3b` |
 | **v0.9.0** | Trusted Devices | `c6d58d9` |
+| **v0.9.1** | Profile MCP Connection Guide | `2387b82` |
+| **v0.9.2** | Diagnostics Copy Button | `0928b18` |
+| **v0.9.3** | is_favorite migration + RLS audit | `4bc79c2` |
+| **v0.9.4** | Android Debug Build + API fetch fix + CORS | `db8ce81` |
 
 All pushed to GitHub `main`. See `MANUAL_REVIEW_PENDING.md` for tasks requiring human action.
 
@@ -164,6 +168,20 @@ npx cap sync              # Sync Android Capacitor assets
 8. All builds (web + Android + desktop) push to `main` — web deploys from GitHub auto-deploy
 9. Vercel free tier: 100 deploys/day limit. Plan upgrades or batch deploys accordingly
 10. See `MANUAL_REVIEW_PENDING.md` for all pending manual tasks
+
+## Capacitor / Android Build
+- Build script: `bash scripts/capacitor-build.sh` — stashes API routes, injects BUILD_COMMIT, builds static export, restores routes, copies to Android, runs gradle
+- Or in parts: `npm run android:build` -> runs the build script
+- APK output: `android/app/build/outputs/apk/debug/app-debug.apk`
+- Signing: `apksigner sign --ks ~/.android/debug.keystore --ks-key-alias androiddebugkey --ks-pass pass:android <apk>`
+- Build marker auto-injected via `__BUILD_COMMIT__` / `__BUILD_TIME__` placeholders in `src/lib/api-fetch.ts`
+
+### Capacitor API Routing
+- Capacitor config: `androidScheme: 'https'` serves app from `https://localhost`, NOT file://
+- Platform detection: `window.Capacitor.isNativePlatform()` (set by Capacitor bridge at runtime)
+- All `/api/*` and `/auth/*` calls are redirected to `https://send.kovina.org/` via `apiFetch()` wrapper
+- Production API requires `Access-Control-Allow-Origin: *` (set in middleware.ts) for Capacitor cross-origin requests
+- CORS preflight (OPTIONS) handled in middleware.ts
 
 ## Manual Tasks Pending
 See `MANUAL_REVIEW_PENDING.md` in repo root for the full list. Key items:

@@ -42,12 +42,17 @@ OpenSend — Free, ad-free, open-source file sharing. Direct device-to-device tr
 | v0.3.1 | **Reliability Hardening** — resumable batches, ICE restart, rate limiting, API validation, diagnostics export, test fixtures |
 | v0.3.2 | **MCP Server** — HTTP endpoint, 4 tools, token management API, profile panel, guest session tools (stdio) |
 | v0.3.3 | **Google Auth** — switch from GitHub to Google OAuth |
-| v0.9.0 | **Trusted Devices** — device management UI, device avatars (+ initials), rename, revocation, sync toggle, transfer favorites, enhanced profile page, guest/account separation |
-| v0.8.0 | **Security & Privacy** — E2EE (AES-256-GCM via PBKDF2), security headers (CSP/HSTS/XFO), session/cloud cleanup cron, abuse protection, RLS audit, penetration checklist, security documentation |
-| v0.7.0 | **Windows Application** — Electron desktop wrapper, NSIS installer, portable build, MSIX package, file associations, auto-update via GitHub releases, Windows .ico icons, build automation |
-| v0.6.0 | **Android Application** — Capacitor integration, native packaging, Android permissions, adaptive icons, splash screens, build pipeline, Play Store assets |
-| v0.5.0 | **PWA Production** — service worker, offline shell, cache versioning, install prompt, update notification, improved manifest with shortcuts, iOS splash screens, apple-touch-icon |
-| v0.4.0 | **Production Transfer Engine** — adaptive chunk sizing, sliding-window speed, EWMA smoothing, exponential backoff retry, cancel button, P2P→Cloud fallback, receiver ICE restart, MCP setup prompt |
+| v0.3.4 | Profile page with MCP connection info |
+| v0.4.0 | Production Transfer Engine |
+| v0.5.0 | PWA Production |
+| v0.6.0 | **Android Application (Capacitor 8)** — native packaging |
+| v0.7.0 | **Windows Application (Electron)** — desktop wrapper |
+| v0.8.0 | **Security & Privacy** — E2EE, headers, cron, docs |
+| v0.9.0 | **Trusted Devices** — device mgmt, sync, favorites |
+| v0.9.1 | Profile MCP connection guide + security header fix |
+| v0.9.2 | Diagnostics copy button |
+| v0.9.3 | is_favorite migration + RLS audit |
+| v0.9.4 | **Android Debug Build** — API fetch, CORS, padding, build marker |
 
 ## Architecture
 
