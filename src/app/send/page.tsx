@@ -15,7 +15,7 @@ import { WebRTCEngine, type TransferProgress, type TransferMetadata, formatSpeed
 import { TRANSFER_METHODS, getDefaultMethod, type TransferMethod, getMethodInfo } from "@/lib/transfer-methods";
 import { useRouter } from "next/navigation";
 import { addLocalHistory } from "@/lib/local-history";
-import { apiFetch, BUILD_COMMIT, resolveApiUrlForDisplay, isNativePlatform } from "@/lib/api-fetch";
+import { apiFetch, apiFetchJson, BUILD_COMMIT } from "@/lib/api-fetch";
 
 type SendState =
   | "select-files"
@@ -90,9 +90,6 @@ export default function SendPage() {
   const [iceState, setIceState] = useState("--");
   const [dcState, setDcState] = useState("--");
   const [lastSignalType, setLastSignalType] = useState("--");
-
-  // API debug — shows request resolution in native builds
-  const [apiDebug, setApiDebug] = useState<string | null>(null);
 
   const pollRef = useRef<PollSignaling | null>(null);
   const engineRef = useRef<WebRTCEngine | null>(null);
@@ -256,17 +253,8 @@ export default function SendPage() {
     setSignalingState("creating-session");
 
     const firstFile = selectedFiles[0].file;
-
-    // ── API DEBUG ────────────────────────────────────────────────────
-    // Resolve the URL up front so we can surface it in the native build
-    // where relative paths would otherwise resolve to https://localhost.
-    const _reqPath = "/api/guest/sessions";
-    const _reqUrl = resolveApiUrlForDisplay(_reqPath);
-    setApiDebug(`Requested: ${_reqPath}\nFinal: ${_reqUrl}\nPlatform: ${isNativePlatform() ? "native" : "web"}`);
-    // ──────────────────────────────────────────────────────────────────
-
     try {
-      const _res = await fetch(_reqUrl, {
+      const data = await apiFetchJson("/api/guest/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -278,23 +266,6 @@ export default function SendPage() {
           total_size: totalSize,
         }),
       });
-
-      const _ct = _res.headers.get("content-type") || "";
-      setApiDebug((p) => `${p}\nStatus: ${_res.status}\nContent-Type: ${_ct}`);
-
-      if (!_res.ok) {
-        let _body = "";
-        try { _body = await _res.text(); } catch {}
-        throw new Error(`API ${_res.status} ${_res.statusText} — ${_reqUrl}: ${_body.slice(0, 200)}`);
-      }
-
-      if (!_ct.includes("application/json")) {
-        const _body = await _res.text().catch(() => "");
-        const _prev = _body.replace(/\s+/g, " ").trim().slice(0, 120);
-        throw new Error(`Expected JSON from ${_reqUrl}, got ${_ct || "unknown"}: ${_prev}`);
-      }
-
-      const data = await _res.json();
       setGuestSessionId(data.session_id);
       setGuestSecret(data.transfer_secret);
       setGuestCode(data.transfer_code);
@@ -391,7 +362,6 @@ export default function SendPage() {
     } catch (err: any) {
       setSendState("failed");
       setError(err.message || "Failed to create session");
-      setApiDebug((p) => `${p || ""}\n✗ ${err.message || "Failed to create session"}`);
     } finally {
       setSending(false);
     }
@@ -1151,13 +1121,6 @@ export default function SendPage() {
         </div>
       )}
 
-      {/* ── API DEBUG OVERLAY ── */}
-      {apiDebug && (
-        <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-950/80 p-3 font-mono text-[11px] text-amber-200 whitespace-pre-wrap break-all">
-          <div className="mb-1 text-[10px] uppercase tracking-wide text-amber-400/70">API Request Debug</div>
-          {apiDebug}
-        </div>
-      )}
     </div>
   );
 }
