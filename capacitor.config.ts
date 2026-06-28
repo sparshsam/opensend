@@ -22,7 +22,7 @@ const config: CapacitorConfig = {
       style: 'DARK',
     },
     GoogleAuth: {
-      clientId: '', // ← Set your Web OAuth client ID here (e.g. "xxxxx.apps.googleusercontent.com")
+      clientId: '932918847607-dpo001dflibtevemp2lk13usrh2fq7og.apps.googleusercontent.com',
     },
   },
 };
