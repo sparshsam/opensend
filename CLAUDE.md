@@ -24,9 +24,9 @@ Deployed and live on `send.kovina.org`. APK at `C:\Users\spars\Desktop\OpenSend-
 | **v0.9.2** | Diagnostics Copy Button | `0928b18` |
 | **v0.9.3** | is_favorite migration + RLS audit | `4bc79c2` |
 | **v0.9.4** | Android Debug Build + API fetch fix + CORS | `db8ce81` |
-| **v0.9.5** | **Icon Refresh** — new app icon from `opensend.png`, all PWA/Android/iOS/social/favicon assets regenerated via `scripts/generate-icons.js` | *(not committed)* |
+| **v0.9.5** | **Icon Refresh + APK API Routing Fix** — new app icon, adaptive icon XML, splash fix, native URL resolution, debug overlay removed | `2fe0e05` |
 
-All previous versions pushed to GitHub `main`. v0.9.5 changes are local only — not committed or deployed.
+All versions pushed to GitHub `main`.
 
 ## Key Facts
 
