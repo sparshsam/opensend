@@ -45,6 +45,11 @@
     "tailwind-merge": "^2.6.0",
     "uuid": "^11.0.0"
   },
+  "overrides": {
+    "@codetrix-studio/capacitor-google-auth": {
+      "@capacitor/core": "$@capacitor/core"
+    }
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
