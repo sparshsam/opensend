@@ -17,14 +17,30 @@ const CSP_HEADER = [
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
-  "X-XSS-Protection": "0", // Deprecated but still scanned
+  "X-XSS-Protection": "0",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "camera=(self), microphone=(), geolocation=(), clipboard-write=(self)",
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Resource-Policy": "same-origin",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Session-Id, X-Transfer-Code, X-Transfer-Secret",
 };
 
 export async function middleware(request: NextRequest) {
+  // Handle CORS preflight
+  if (request.method === "OPTIONS") {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Session-Id, X-Transfer-Code, X-Transfer-Secret",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  }
+
   // Apply Supabase session first — this returns the actual response
   const response = await updateSession(request);
 
